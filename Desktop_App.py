@@ -11,7 +11,7 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QIcon
 from PyQt5.QtGui import QPixmap,QPalette,QBrush
 from PyQt5.QtCore import Qt, QPropertyAnimation, QRect, QTimer, QSize,QDate ,QCalendar # Qt core manages the alignment, and the Qpropertyanimation, with the Qreact handles the animation
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QVBoxLayout, QPushButton, QWidget, QLineEdit, QStyle, QAction, QToolBar,QToolButton, QCheckBox, QMenu, QDateEdit, QMessageBox,QCalendarWidget,QStackedWidget,QFrame,QMainWindow
+from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QVBoxLayout, QPushButton, QWidget, QLineEdit, QStyle, QAction, QToolBar,QToolButton, QCheckBox, QMenu, QDateEdit, QMessageBox,QCalendarWidget,QStackedWidget,QFrame,QHBoxLayout
 
 
 class LoginWindow(QMainWindow):
@@ -367,11 +367,28 @@ class Main1Window(QMainWindow):
 
          # Create a stacked widget to hold multiple pages
         self.stacked_widget = QStackedWidget(self.centralWidget())
+        self.stacked_widget.setStyleSheet("background-color:white")
         self.stacked_widget.setGeometry(200, 0, 700, 900)  # Adjust size and position as needed
+        # Create a QLabel to display the image
+       # image_label = QLabel()
+      #  image_path = "path/to/your/image.jpg"  # Replace with the actual path to your image file
+     #   pixmap = QPixmap(image_path)
+    #    image_label.setPixmap(pixmap)
+
+# Add the QLabel to the stacked widget
+   #     self.stacked_widget.addWidget(image_label)
 
         # Add pages to the stacked widget
-        self.create_home_page()
-        self.create_profile_page()
+        self.create_home_page() #0
+        self.account_page() #1
+        self.investment_page() #2
+        self.saving_page() #3
+        self.fundstransfer_page #4
+        self.loan_page() #5
+        self.create_profile_page() #6
+        
+        
+
 
         
         # Create a layout for the frame
@@ -379,8 +396,8 @@ class Main1Window(QMainWindow):
 
         Home_button = QPushButton("HOME", self.frame)
        
-        Home_button.setGeometry(50, 100, 100, 30)
-        self.set_button_icon(Home_button, "home.png")  # Set button icon
+        Home_button.setGeometry(10, 100, 100, 30)
+        self.set_button_icon0(Home_button, "home.png")  # Set button icon
         Home_button.setStyleSheet("""
                              QPushButton {
                              background-color: transparent;
@@ -396,13 +413,109 @@ class Main1Window(QMainWindow):
         Home_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(0))  # Switch to home page
 
         
-    #    frame_layout.addWidget(Home_button)
-
-
-        Profile_button = QPushButton("PROFILE", self.frame)
+        account_button = QPushButton("Account", self.frame)
        
-        Profile_button.setGeometry(40, 200, 150, 30)
-        self.set_button_icon2(Profile_button, "user.png")  # Set button icon
+        account_button.setGeometry(-7, 180, 150, 30)
+        self.set_button_icon1(account_button, "user.png")  # Set button icon
+        account_button.setStyleSheet("""
+                             QPushButton {
+                             background-color: transparent;
+                             border:none;
+                              font-size: 23px; 
+                              border-radius: 35px;
+                              color: white;
+                              }
+                               QPushButton:hover{
+                                  font-size: 15pt;
+                              }
+                          """)
+        account_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(1))  # Switch to account page
+
+        investment_button = QPushButton("Investment", self.frame)
+       
+        investment_button.setGeometry(10, 260, 150, 30)
+        self.set_button_icon2(investment_button, "investment.png")  # Set button icon
+        investment_button.setStyleSheet("""
+                             QPushButton {
+                             background-color: transparent;
+                             border:none;
+                              font-size: 23px; 
+                              border-radius: 35px;
+                              color: white;
+                              }
+                               QPushButton:hover{
+                                  font-size: 15pt;
+                              }
+                          """)
+        investment_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(2))  # Switch to investment page
+        
+
+
+                   
+        saving_button = QPushButton("Savings", self.frame)
+       
+        saving_button.setGeometry(-7, 340, 150, 30)
+        self.set_button_icon3(saving_button, "piggy-bank.png")  # Set button icon
+        saving_button.setStyleSheet("""
+                             QPushButton {
+                             background-color: transparent;
+                             border:none;
+                              font-size: 23px; 
+                              border-radius: 35px;
+                              color: white;
+                              }
+                               QPushButton:hover{
+                                  font-size: 15pt;
+                              }
+                          """)
+        saving_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(3))  # Switch to savings page
+
+      
+        fundstransfer_button = QPushButton("Transfer", self.frame)
+        fundstransfer_button.setGeometry(-7, 420, 150, 30)
+        self.set_button_icon4(fundstransfer_button, "money.png")  # Set button icon
+        fundstransfer_button.setStyleSheet("""
+                             QPushButton {
+                             background-color: transparent;
+                             border:none;
+                              font-size: 23px; 
+                              border-radius: 35px;
+                              color: white;
+                              }
+                               QPushButton:hover{
+                                  font-size: 15pt;
+                              }
+                          """)
+        fundstransfer_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(4))  # Switch to Funds Transfer page
+
+
+            
+        loan_button= QPushButton("Loan", self.frame)
+       
+        loan_button.setGeometry(-25, 500, 150, 30)
+        self.set_button_icon5(loan_button, "payment.png")  # Set button icon
+        loan_button.setStyleSheet("""
+                             QPushButton {
+                             background-color: transparent;
+                             border:none;
+                              font-size: 23px; 
+                              border-radius: 35px;
+                              color: white;
+                              }
+                               QPushButton:hover{
+                                  font-size: 15pt;
+                              }
+                          """)
+        loan_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(5))  # Switch to loan page
+
+
+
+
+
+        Profile_button = QPushButton("Profile", self.frame)
+       
+        Profile_button.setGeometry(-16, 580, 150, 30)
+        self.set_button_icon6(Profile_button, "user.png")  # Set button icon
         Profile_button.setStyleSheet("""
                              QPushButton {
                              background-color: transparent;
@@ -415,23 +528,64 @@ class Main1Window(QMainWindow):
                                   font-size: 15pt;
                               }
                           """)
-        Profile_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(1))  # Switch to profile page
+        Profile_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(6))  # Switch to profile page
 
         
-    def set_button_icon(self, Home_button, icon_path):
+    def set_button_icon0(self, Home_button, icon_path):
         icon = QIcon(icon_path)
         Home_button.setIcon(icon)
         Home_button.setIconSize(Home_button.size())  # Set icon size to button size
 
 
-    def set_button_icon2(self, Profile_button, icon_path):
+
+    
+    def set_button_icon1(self, account_button, icon_path):
         icon = QIcon(icon_path)
-        Profile_button.setIcon(icon)
-        Profile_button.setIconSize(Profile_button.size())  # Set icon size to button size
+        account_button.setIcon(icon)
+        account_button.setIconSize(account_button.size())  # Set icon size to button size
     
 
+      
+    def set_button_icon2(self, investment_button, icon_path):
+        icon = QIcon(icon_path)
+        investment_button.setIcon(icon)
+        investment_button.setIconSize(investment_button.size())  # Set icon size to button size
+    
+    def set_button_icon3(self, saving_button, icon_path):
+        icon = QIcon(icon_path)
+        saving_button.setIcon(icon)
+        saving_button.setIconSize(saving_button.size())  # Set icon size to button size
+    
+
+    
+    def set_button_icon4(self, fundstransfer_button, icon_path):
+        icon = QIcon(icon_path)
+        fundstransfer_button.setIcon(icon)
+        fundstransfer_button.setIconSize(fundstransfer_button.size())  # Set icon size to button size
+    
+    def set_button_icon5(self, loan_button, icon_path):
+        icon = QIcon(icon_path)
+        loan_button.setIcon(icon)
+        loan_button.setIconSize(loan_button.size())  # Set icon size to button size
+    
+
+    def set_button_icon6(self, profile_button, icon_path):
+        icon = QIcon(icon_path)
+        profile_button.setIcon(icon)
+        profile_button.setIconSize(profile_button.size())  # Set icon size to button size
+    
+#Page index 0
     def create_home_page(self):
         home_widget = QWidget()
+        #profile_layout = QVBoxLayout(profile_widget)
+              # Label for "My Profile"
+        welcome_label = QLabel("<html><p>Home<p></>")
+        welcome_label.setGeometry(50,50,600,80)
+        welcome_label.setStyleSheet(
+            "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
+        welcome_label.setAlignment(Qt.AlignCenter)
+       # profile_layout.addWidget(welcome_label)
+        welcome_label.setParent(home_widget)
         
       
 
@@ -439,22 +593,175 @@ class Main1Window(QMainWindow):
         
         self.stacked_widget.addWidget(home_widget)
 
-    def create_profile_page(self):
-        profile_widget = QWidget()
-        profile_layout = QVBoxLayout(profile_widget)
-      # Label for "My Profile"
-        welcome_label = QLabel("<html><p>My Profile<p></>")
+#Page index 1
+    def account_page(self):
+        account_widget = QWidget()
+          #profile_layout = QVBoxLayout(profile_widget)
+              # Label for "My Profile"
+        welcome_label = QLabel("<html><p>My Account<p></>")
+        welcome_label.setGeometry(50,50,600,80)
         welcome_label.setStyleSheet(
             "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
         welcome_label.setAlignment(Qt.AlignCenter)
-        profile_layout.addWidget(welcome_label)
+       # profile_layout.addWidget(welcome_label)
+        welcome_label.setParent(account_widget)
         
+        self.stacked_widget.addWidget(account_widget)  
+
+#Page Index 2
+    def investment_page(self):
+        investment_widget = QWidget()
+          #profile_layout = QVBoxLayout(profile_widget)
+              # Label for "My Profile"
+        welcome_label = QLabel("<html><p>Investment<p></>")
+        welcome_label.setGeometry(50,50,600,80)
+        welcome_label.setStyleSheet(
+            "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
+        welcome_label.setAlignment(Qt.AlignCenter)
+       # profile_layout.addWidget(welcome_label)
+        welcome_label.setParent(investment_widget)
+        
+      
+
+        
+        
+        self.stacked_widget.addWidget(investment_widget)  
+
+#Page Index 3
+    def saving_page(self):
+        savings_widget = QWidget()
+          #profile_layout = QVBoxLayout(profile_widget)
+              # Label for "My Profile"
+        welcome_label = QLabel("<html><p>Savings<p></>")
+        welcome_label.setGeometry(50,50,600,80)
+        welcome_label.setStyleSheet(
+            "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
+        welcome_label.setAlignment(Qt.AlignCenter)
+       # profile_layout.addWidget(welcome_label)
+        welcome_label.setParent(savings_widget)
+        
+        self.stacked_widget.addWidget(savings_widget) 
+
+#Page Index 4
+    def fundstransfer_page(self):
+        fundstransfer_widget = QWidget()
+   
+        
+        
+        self.stacked_widget.addWidget(fundstransfer_widget) 
+
+
+
+#Page Index 5
+    def loan_page(self):
+        loan_widget = QWidget()
+
+        self.stacked_widget.addWidget(loan_widget) 
+
+
+
+
+#Page index 6
+
+    def create_profile_page(self):
+        profile_widget = QWidget()
+    
+
+
+        welcome_label = QLabel("<html><p>My Profile<p></>")
+        welcome_label.setGeometry(50,50,600,80)
+        welcome_label.setStyleSheet(
+            "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
+        welcome_label.setAlignment(Qt.AlignCenter)
+       
+
+        welcome_label.setParent(profile_widget)
+
+#         Add an edit profile button
+
+        edit_profile_button = QPushButton(self)
+        edit_profile_button.setGeometry(50, 200, 500, 50)
+        icon = QIcon("user.png")                  
+        # Set the icon size explicitly
+        icon_size = QSize(30, 30)  # Adjust the size as needed
+        edit_profile_button.setIconSize(icon_size)
+
+         # Set the icon position to the left side of the button
+        edit_profile_button.setStyleSheet("""
+                        QPushButton {
+                                     background-color: grey;
+                                     font-size: 12pt; 
+                                     border-radius: 35px;
+                                     text-align: left;  /* Align text to the left */
+                                     padding-left: 40px;  /* Space for the icon */
+                                               
+                                     }          
+                        
+                        QPushButton::icon {
+                                     padding-right: 15px;  /* Space between icon and text */
+                                    }
+                        QPushButton:hover{
+                                     background-color:#333333
+                                    } 
+                                    
+                                                """)
+
+# Set the icon to the left of the button text
+        icon = QIcon("user.png")
+        edit_profile_button.setIcon(icon)
+
+# Set the text for the button
+        edit_profile_button.setText("Edit Profile|")
+
+        
+
+
+        edit_profile_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(7))
+
+        edit_profile_button.setParent(profile_widget)
+
         self.stacked_widget.addWidget(profile_widget)
+
+
+        
+       
+
+    def editprofile_page(self):
+        editprofile_widget = QWidget()
+       
+        welcome_label = QLabel("<html><p>Edit Profile<p></>")
+        welcome_label.setGeometry(50,50,600,80)
+        welcome_label.setStyleSheet(
+            "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
+        welcome_label.setAlignment(Qt.AlignCenter)
+       # profile_layout.addWidget(welcome_label)
+        welcome_label.setParent(editprofile_widget)
+
+        self.stacked_widget.addWidget(editprofile_widget)
+
+
+
         
 
+    
+        
+        
       
 
+        
+        
+        
+
+
+
+
+
+
       
+
+    
+        
+              
 
     def load_image(self):
         pixmap = QPixmap(self.image_paths[0])  # Assuming there's only one image in the list
