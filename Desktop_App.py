@@ -10,15 +10,18 @@ from PyQt5 import QtCore
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QIcon
 from PyQt5.QtGui import QPixmap,QPalette,QBrush
-from PyQt5.QtCore import Qt, QPropertyAnimation, QRect, QTimer, QSize,QDate ,QCalendar # Qt core manages the alignment, and the Qpropertyanimation, with the Qreact handles the animation
+from PyQt5.QtCore import Qt, QPropertyAnimation, QRect, QTimer, QSize,QDate ,QCalendar ,QDateTime# Qt core manages the alignment, and the Qpropertyanimation, with the Qreact handles the animation
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QVBoxLayout, QPushButton, QWidget, QLineEdit, QStyle, QAction, QToolBar,QToolButton, QCheckBox, QMenu, QDateEdit, QMessageBox,QCalendarWidget,QStackedWidget,QFrame,QHBoxLayout
 
 
 class LoginWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.db = self.create_db_connection()  # Initialize db attribute during object creation
+        self.current_user_email = None  # Store logged-in user info
+
         self.setWindowTitle("Login Window")
-        self.setGeometry(100, 100, 900, 900)
+        self.setGeometry(100, 100, 1500, 900)
 
         # Create central widget and layout
         self.central_widget = QWidget()
@@ -28,10 +31,10 @@ class LoginWindow(QMainWindow):
 
         # Create a QLabel to hold the image
         self.image_label = QLabel(self.central_widget)
-        self.image_label.setGeometry(0, 0, 900, 900)
+        self.image_label.setGeometry(0, 0, 1500, 900)
 
         # Loading a list of images
-        self.image_paths = ["image10.jpg"]
+        self.image_paths = ["desk.jpg"]
 
 
         # Load intial image
@@ -39,10 +42,10 @@ class LoginWindow(QMainWindow):
 
         # Label for "WELCOME"
         self.welcome_label = QLabel("<html><p>Log into your</><p> account</>", self)
-        label_width = 200  # Adjust the width of the label as needed
-        label_height =900
-        self.welcome_label.setGeometry(0, 10, label_height, label_width)
-        self.welcome_label.setStyleSheet("background-color: white; color: black; padding: 20px; border-radius: 20px; font-size: 18pt;")
+        label_height = 200  # Adjust the width of the label as needed
+        label_width =900
+        self.welcome_label.setGeometry(300, 10, label_width, label_height)
+        self.welcome_label.setStyleSheet("background-color: black; color: white; padding: 20px; border-radius: 20px; font-size: 18pt;")
         self.welcome_label.setAlignment(Qt.AlignCenter)
 
 
@@ -87,7 +90,7 @@ class LoginWindow(QMainWindow):
         # Button for "Forgot Password"
         self.forgot_password_button = QPushButton("forgot Password ?", self)
         button_width = 300  # Adjust the width of the button as needed
-        button_x = 400  # Center the button horizontally
+        button_x = 700 # Center the button horizontally
         self.forgot_password_button.setGeometry(button_x, 410, button_width, 30)
         self.forgot_password_button.setStyleSheet("""
                              QPushButton {
@@ -105,7 +108,7 @@ class LoginWindow(QMainWindow):
 
         # Create a line edit for the email input field
         self.email_input = QLineEdit(self)
-        self.email_input.setGeometry(280, 290, 350, 50)  # Adjust the position and size of the input field
+        self.email_input.setGeometry(575, 290, 350, 50)  # Adjust the position and size of the input field
 
         # Set placeholder text for the email input field
         self.email_input.setPlaceholderText("Enter Email, Phone, or  Account no")
@@ -129,7 +132,7 @@ class LoginWindow(QMainWindow):
         #Create a line edit for password input field
 
         self.password_input = QLineEdit(self)
-        self.password_input.setGeometry(280, 350, 350, 50)
+        self.password_input.setGeometry(575, 350, 350, 50)
 
         #Set placeholder text for the password input field
         self.password_input.setPlaceholderText("Enter Password")
@@ -149,7 +152,7 @@ class LoginWindow(QMainWindow):
 
         # Create checkbox to toggle password visibility
         self.show_password_checkbox = QCheckBox("Show Password", self)
-        self.show_password_checkbox.setGeometry(280, 410, 200, 30)
+        self.show_password_checkbox.setGeometry(570, 410, 200, 30)
         self.show_password_checkbox.setStyleSheet("font-size:16px; color:black")
         self.show_password_checkbox.stateChanged.connect(self.toggle_password_visibility)
 
@@ -216,65 +219,72 @@ class LoginWindow(QMainWindow):
    
     
 
-    # Compare the hashed passwords
+    
               
+        self.db = self.create_db_connection()
+        self.current_user_email = None # Store logged-in user info
+
+    def create_db_connection(self):
+        try:
+            db = mysql.connector.connect(
+                host="localhost",
+                port=3307,
+                user="root",
+                password="S3cR3tUs3R",
+                database="desktopdb"
+            )
+            return db
+        except mysql.connector.Error as e:
+            QMessageBox.critical(self, "Database Error", f"Failed to connect to the database. Error: {e}")
+            return None
+
 
     def open_Main1_window(self):
-        self.Main1_window = Main1Window()
-        self.Main1_window.show()
-        self.close()
-
-    '''
         email = self.email_input.text()
         password = self.password_input.text()
 
 
         try:
-            with mysql.connector.connect(host="localhost", port=3307, user= "root", password="S3cR3tUs3R", db="desktopdb") as db:
-
+            if self.db is None:
+                return
+            
             #Create Cursor:
-                with db.cursor() as cursor:
-                 hash_password = hashlib.sha256(password.encode()).hexdigest()
+            cursor = self.db.cursor()
+            hash_password = hashlib.sha256(password.encode()).hexdigest()
         
             
             # Execute SELECT query to check login credentials
-                 query = "SELECT * FROM registerdb WHERE Email = %s AND PasswordHash = %s"
+            query = "SELECT * FROM registerdb WHERE Email = %s AND PasswordHash = %s"
                  
-                 cursor.execute(query, (email, hash_password))
-                 result = cursor.fetchone()
-                 print(hash_password)
-                 print(password)
+            cursor.execute(query, (email, hash_password))
+            result = cursor.fetchone()
+            print(hash_password)
+            print(password)
             
 
             if result:
-
+          
 
                 # Assuming the login is successful and you have retrieved user details
                 Firstname, Lastname = self.get_user_details(email)
                 self.log_login(Firstname, Lastname, email)
-
-
-                
-
-                self.Main1_window = Main1Window()
-                self.Main1_window.show()
-
-                
+                self.current_user_email = email #Sets the session variable
                 cursor.close()
+                self.Main1_window = Main1Window(db=self.db, Firstname=Firstname,current_user_email=self.current_user_email)
+                self.Main1_window.show()
                 
-                db.close()
 
 
             # Close the current window (RegisterWindow)
                 self.close()
                 QMessageBox.information(self, "Login Successful", "You have successfully logged in.")
-
+      
                 
                
             else:
                 
-                self.Main1_window = Main1Window()
-                self.Main1_window.close()
+                
+                
 
                 QMessageBox.warning(self, "Login Failed", "Invalid email or password.")
        
@@ -284,39 +294,28 @@ class LoginWindow(QMainWindow):
     def get_user_details(self, email):
         # Fetch user details from the database based on the email
         # Modify this according to your database structure and query method
-        db = mysql.connector.connect(host="localhost", port=3307, user="root", password="S3cR3tUs3R", database="desktopdb")
-        cursor = db.cursor()
-
+        cursor = self.db.cursor()
         # Execute the SELECT query to fetch user details based on email
         sql = "SELECT FirstName, LastName FROM registerdb WHERE Email = %s"
         cursor.execute(sql, (email,))
         result = cursor.fetchone()  # Assuming there's only one user with the email
-
-        # Check if a user with the provided email exists
-        if result:
-            Firstname, Lastname = result
-            return Firstname, Lastname
+        cursor.close()
+        return result if result else (None, None)
 
     def log_login(self, Firstname, Lastname, email):
         try:
-            # Your code for database connection, cursor, and inserting log entry here
-            db = mysql.connector.connect(host="localhost",port=3307, user="root", password="S3cR3tUs3R", database="desktopdb")
-            cursor = db.cursor()
-
-            # Get current login time
-            login_time = datetime.now()
-
-            # Insert login log into the database
-            sql = "INSERT INTO login_logs (Firstname, Lastname, Email, login_time) VALUES (%s, %s, %s, %s)"
-            values = (Firstname, Lastname, email, login_time)
-            cursor.execute(sql, values)
-
-            # Commit changes and close connection
-            db.commit()
-            db.close()
+           cursor = self.db.cursor()
+           login_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+           sql = "INSERT INTO login_logs (Firstname, Lastname, Email, login_time) VALUES (%s, %s, %s, %s)"
+           values = (Firstname, Lastname, email, login_time)
+           cursor.execute(sql, values)
+           self.db.commit()
+           cursor.close()
         except mysql.connector.Error as e:
-            print("Error logging login:", e)        
-  '''
+            QMessageBox.critical(self, "Database Error", f"Error logging login: {e}")
+
+
+
 
     def open_register_window(self):
         self.register_window = RegisterWindow()
@@ -331,12 +330,14 @@ class LoginWindow(QMainWindow):
 
 
 class Main1Window(QMainWindow):
-    def __init__(self):
+    def __init__(self, db, current_user_email,Firstname):
         super().__init__()
         self.setWindowTitle(" Main  Window")
-        self.setGeometry(100, 100, 900, 900)
-
-        # Create central widget and layout
+        self.setGeometry(100, 100, 1500, 900)
+        self.current_user_email = current_user_email 
+        self.db = db
+        self.first_name = Firstname
+              # Create central widget and layout
         
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
@@ -344,31 +345,45 @@ class Main1Window(QMainWindow):
 
         # Create a QLabel to hold the image
         self.image_label = QLabel(self.central_widget)
-        self.image_label.setGeometry(0, 0, 900, 900)
+        self.image_label.setGeometry(0, 0, 1500, 900)
 
         # Loading a list of images
         self.image_paths = ["image10.jpg"]
 
         # Load intial image
         self.load_image()
-
                  # Create a stacked widget to hold multiple pages
         self.stacked_widget = QStackedWidget(self.centralWidget())
        # self.central_layout = QVBoxLayout(self.centralWidget())
        # self.central_layout.addWidget(self.stacked_widget)
-    #    self.stacked_widget.setStyleSheet("background-color:white")
-        self.stacked_widget.setGeometry(200, 0, 700, 900)  # Adjust size and position as needed
+      #  self.stacked_widget.setStyleSheet("background-color: transparent")
+        self.stacked_widget.setGeometry(200, 0, 1300, 900)  # Adjust size and position as needed
+        #.stacked_widget.setStyleSheet("QStackedWidget{background-image: url(desk.jpg); background-repeat; no-repeat; background-position: center; background-size: cover; }")
+        self.current_user_email = current_user_email 
+        self.db = db
+        self.first_name = Firstname
+
         # Create a QLabel to display the image
-        image_label = QLabel(self.central_widget)
-        image_path = "stack.jpg"  # Replace with the actual path to your image file
-        pixmap = QPixmap(image_path)
-        image_label.setPixmap(pixmap)
+        image_label = QLabel(self.stacked_widget)
+        image_label.setGeometry(200, 0 , 1300, 900)
+        self.image_path = ["desk.jpg"]
+
+        self.load1_image()
+       # pixmap = QPixmap("desk.jpg")
+       # background_label = QLabel(self.stacked_widget)
+        #background_label.setPixmap(pixmap.scaled(self.stacked_widget.size()))
+        
+        #background_label.setScaledContents(self)
+        #image_label = QLabel()
+        #image_path = "stack.jpg"  # Replace with the actual path to your image file
+        #pixmap = QPixmap(image_path)
+        #image_label.setPixmap(pixmap)
 
 # Add the QLabel to the stacked widget
    #     self.stacked_widget.addWidget(image_label)
 
         # Add pages to the stacked widget
-        self.home_page() #0
+        self.home_page(db, current_user_email,Firstname) #0
         self.account_page() #1
         self.investment_page() #2
         self.savings_page() #3
@@ -386,6 +401,10 @@ class Main1Window(QMainWindow):
         self.wallet_page() # 15
         self.loan_balance_page() #16
         self.loan_request_page() #17
+        self.savings_account_page() #18
+        self.notification_page() #19
+        self.email_page() # 20
+        self.mobile_number_page() #21
       
 
 
@@ -401,9 +420,9 @@ class Main1Window(QMainWindow):
         # Create a layout for the frame
        # frame_layout = QVBoxLayout(self.frame)    
 
-        Home_button = QPushButton("HOME", self.frame)
+        Home_button = QPushButton("Dashboard", self.frame)
        
-        Home_button.setGeometry(10, 100, 100, 30)
+        Home_button.setGeometry(10, 100, 150, 30)
         self.set_button_icon0(Home_button, "home.png")  # Set button icon
         Home_button.setStyleSheet("""
                              QPushButton {
@@ -576,21 +595,105 @@ class Main1Window(QMainWindow):
 
    
 #Page index 0
-    def home_page(self):
+    def home_page(self, db , current_user_email,Firstname):
+        self.current_user_email = current_user_email 
+        self.db = db
+        self.first_name = Firstname
+
         home_widget = QWidget()
         
-        home_label = QLabel(" <html><p> Home<p></>", home_widget)
-        home_label.setGeometry(50,50,600,80)
+        home_label = QLabel(f"Welcome, {Firstname} ",home_widget)
+        home_label.setGeometry(350,50,600,80)
         home_label.setStyleSheet(
             "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
         home_label.setAlignment(Qt.AlignCenter)
+
+        home1_widget = QWidget()
+        home1_label = QLabel(" <html><p> Home<p></>", home1_widget)
+        home1_label.setGeometry(50,150,800,500)
+        home1_label.setStyleSheet(
+            "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
+        home1_label.setAlignment(Qt.AlignCenter)
+        home1_label.setParent(home_widget)
+
+        
+        home2_widget = QWidget()
+        home2_label = QLabel(" <html><p> Home<p></>", home2_widget)
+        home2_label.setGeometry(50,680,800,200)
+        home2_label.setStyleSheet(
+            "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
+        home2_label.setAlignment(Qt.AlignCenter)
+        home2_label.setParent(home_widget)
+        
+
+        home3_widget = QWidget()
+        home3_label = QLabel(" <html><p> Home<p></>", home3_widget)
+        home3_label.setGeometry(900,150,350,300)
+        home3_label.setStyleSheet(
+            "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
+        home3_label.setAlignment(Qt.AlignCenter)
+        home3_label.setParent(home_widget)
+
+        home4_widget = QWidget()
+        home4_label = QLabel(" <html><p> Home<p></>", home4_widget)
+        home4_label.setGeometry(900,480,350,300)
+        home4_label.setStyleSheet(
+            "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
+        home4_label.setAlignment(Qt.AlignCenter)
+        home4_label.setParent(home_widget)
+
+
+        
+        logout_button = QPushButton(self)
+        logout_button.setGeometry(950,800,300,70)
+        icon = QIcon("log-out.png")
+        icon_size = QSize(30, 30)  # Adjust the size as needed
+        logout_button.setIconSize(icon_size)
+        logout_button.setStyleSheet("""
+                           QPushButton {
+                                       background-color: blue;
+                                       font-size: 20pt;
+                                       border-radius: 35px;
+                                       color: black;
+                                    text-align: left;  /* Align text to the left */
+                                     padding-left: 40px;  /* Space for the icon */
+                                               
+                                     }          
+                        
+                        QPushButton::icon {
+                                     padding-right: 15px;  /* Space between icon and text */
+                                    }
+                        QPushButton:hover{
+                                     background-color:#333333
+                                    } 
+                                    
+                                                """)
+        # Set the icon to the left of the button text
+        icon = QIcon("log-out.png")
+        logout_button.setIcon(icon)
+
+# Set the text for the button
+        logout_button.setText(" | log Out")
+
+        logout_button.clicked.connect(self.open_main_window)
+
+        logout_button.setParent(home_widget)
+
+        
+        
         
         self.stacked_widget.addWidget(home_widget)
+
+    def open_main_window(self):
+        self.main_window = MainWindow()
+        self.main_window.show()
+        self.current_user_email = None
+        self.close()   
 
     def account_page(self):
         account_widget =QWidget()
         account_label = QLabel("<html><p> My Account <p></html>", account_widget)
-        account_label.setGeometry(50, 50, 600 , 80)
+        account_label.setGeometry(350, 50, 600 , 80)
         account_label.setStyleSheet("background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")    
         account_label.setAlignment(Qt.AlignCenter)
 
@@ -606,7 +709,7 @@ class Main1Window(QMainWindow):
          # Set the icon position to the left side of the button
         check_balance_button.setStyleSheet("""
                         QPushButton {
-                                     background-color: grey;
+                                     background-color: white;
                                      font-size: 12pt; 
                                      border-radius: 35px;
                                      text-align: left;  /* Align text to the left */
@@ -648,7 +751,7 @@ class Main1Window(QMainWindow):
          # Set the icon position to the left side of the button
         mini_statement_button.setStyleSheet("""
                         QPushButton {
-                                     background-color: grey;
+                                     background-color: white;
                                      font-size: 12pt; 
                                      border-radius: 35px;
                                      text-align: left;  /* Align text to the left */
@@ -683,11 +786,14 @@ class Main1Window(QMainWindow):
         balance_widget = QWidget()
        
         balance_label = QLabel("<html><p>Balance Enquiry<p></>", balance_widget)
-        balance_label.setGeometry(50,50,600,80)
+        balance_label.setGeometry(350,50,600,80)
         balance_label.setStyleSheet(
             "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
         balance_label.setAlignment(Qt.AlignCenter)
        # profile_layout.addWidget(welcome_label)
+
+        bal_label = QLabel("<html><p>Current Balance: $0.00<p></html>", balance_widget)
+        
        
 
         self.stacked_widget.addWidget(balance_widget)    
@@ -696,7 +802,7 @@ class Main1Window(QMainWindow):
         statement_widget = QWidget()
        
         statement_label = QLabel("<html><p>Mini Statement-All Transactions<p></>", statement_widget)
-        statement_label.setGeometry(50,50,600,80)
+        statement_label.setGeometry(350,50,600,80)
         statement_label.setStyleSheet(
             "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
         statement_label.setAlignment(Qt.AlignCenter)
@@ -713,7 +819,7 @@ class Main1Window(QMainWindow):
     def investment_page(self):
         investment_widget =QWidget()
         investment_label = QLabel("<html><p> Investment <p></html>", investment_widget)
-        investment_label.setGeometry(50, 50, 600 , 80)
+        investment_label.setGeometry(350, 50, 600 , 80)
         investment_label.setStyleSheet("background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")    
         investment_label.setAlignment(Qt.AlignCenter)
        
@@ -730,7 +836,7 @@ class Main1Window(QMainWindow):
          # Set the icon position to the left side of the button
         investment_balance_button.setStyleSheet("""
                         QPushButton {
-                                     background-color: grey;
+                                     background-color: white;
                                      font-size: 12pt; 
                                      border-radius: 35px;
                                      text-align: left;  /* Align text to the left */
@@ -770,7 +876,7 @@ class Main1Window(QMainWindow):
          # Set the icon position to the left side of the button
         investment_request_button.setStyleSheet("""
                         QPushButton {
-                                     background-color: grey;
+                                     background-color: white;
                                      font-size: 12pt; 
                                      border-radius: 35px;
                                      text-align: left;  /* Align text to the left */
@@ -806,7 +912,7 @@ class Main1Window(QMainWindow):
         invest_widget = QWidget()
        
         invest_label = QLabel("<html><p>Check Investment Account Balance<p></>", invest_widget)
-        invest_label.setGeometry(50,50,600,80)
+        invest_label.setGeometry(350,50,600,80)
         invest_label.setStyleSheet(
             "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
         invest_label.setAlignment(Qt.AlignCenter)
@@ -820,7 +926,7 @@ class Main1Window(QMainWindow):
         request_widget = QWidget()
        
         request_label = QLabel("<html><p>Check Investment Request<p></>", request_widget)
-        request_label.setGeometry(50,50,600,80)
+        request_label.setGeometry(350,50,600,80)
         request_label.setStyleSheet(
             "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
         request_label.setAlignment(Qt.AlignCenter)
@@ -832,11 +938,64 @@ class Main1Window(QMainWindow):
     def savings_page(self):
         savings_widget =QWidget()
         savings_label = QLabel("<html><p> My Savings <p></html>", savings_widget)
-        savings_label.setGeometry(50, 50, 600 , 80)
+        savings_label.setGeometry(350, 50, 600 , 80)
         savings_label.setStyleSheet("background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")    
         savings_label.setAlignment(Qt.AlignCenter)
+
+
+
+        # Create account
+        
+        account_button = QPushButton(self)
+        account_button.setGeometry(50, 200, 500, 50)
+                         
+        # Set the icon size explicitly
+        icon_size = QSize(30, 30)  # Adjust the size as needed
+        account_button.setIconSize(icon_size)
+
+         # Set the icon position to the left side of the button
+        account_button.setStyleSheet("""
+                        QPushButton {
+                                     background-color: white;
+                                     font-size: 12pt; 
+                                     border-radius: 35px;
+                                     text-align: left;  /* Align text to the left */
+                                     padding-left: 40px;  /* Space for the icon */
+                                               
+                                     }          
+                        
+                        QPushButton::icon {
+                                     padding-right: 15px;  /* Space between icon and text */
+                                    }
+                        QPushButton:hover{
+                                     background-color:#333333
+                                    } 
+                                    
+                                                """)
+
+# Set the icon to the left of the button text
+        icon = QIcon("piggy-bank.png")
+        account_button.setIcon(icon)
+
+# Set the text for the button
+        account_button.setText(" | Create Account")
+
+        account_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(18))
+
+        account_button.setParent(savings_widget)
+
         self.stacked_widget.addWidget(savings_widget)
 
+
+    def savings_account_page(self):
+        saccount_widget =QWidget()
+        saccount_label = QLabel("<html><p> Create Account <p></html>", saccount_widget)
+        saccount_label.setGeometry(350, 50, 600 , 80)
+        saccount_label.setStyleSheet("background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")    
+        saccount_label.setAlignment(Qt.AlignCenter)
+        self.stacked_widget.addWidget(saccount_widget)
+
+        #Own account button
 
 
 
@@ -846,7 +1005,7 @@ class Main1Window(QMainWindow):
     def transfer_page(self):
         transfer_widget =QWidget()
         transfer_label = QLabel("<html><p> Funds Transfer <p></html>", transfer_widget)
-        transfer_label.setGeometry(50, 50, 600 , 80)
+        transfer_label.setGeometry(350, 50, 600 , 80)
         transfer_label.setStyleSheet("background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")    
         transfer_label.setAlignment(Qt.AlignCenter)
 
@@ -862,7 +1021,7 @@ class Main1Window(QMainWindow):
          # Set the icon position to the left side of the button
         own_account_button.setStyleSheet("""
                         QPushButton {
-                                     background-color: grey;
+                                     background-color: white;
                                      font-size: 12pt; 
                                      border-radius: 35px;
                                      text-align: left;  /* Align text to the left */
@@ -901,7 +1060,7 @@ class Main1Window(QMainWindow):
          # Set the icon position to the left side of the button
         another_account_button.setStyleSheet("""
                         QPushButton {
-                                     background-color: grey;
+                                     background-color: white;
                                      font-size: 12pt; 
                                      border-radius: 35px;
                                      text-align: left;  /* Align text to the left */
@@ -940,7 +1099,7 @@ class Main1Window(QMainWindow):
          # Set the icon position to the left side of the button
         wallet_button.setStyleSheet("""
                         QPushButton {
-                                     background-color: grey;
+                                     background-color: white;
                                      font-size: 12pt; 
                                      border-radius: 35px;
                                      text-align: left;  /* Align text to the left */
@@ -979,7 +1138,7 @@ class Main1Window(QMainWindow):
     def own_account_page(self):
         own_account_widget =QWidget()
         own_account_label = QLabel("<html><p> Funds to Transfer-To Own Account<p></html>", own_account_widget)
-        own_account_label.setGeometry(50, 50, 600 , 80)
+        own_account_label.setGeometry(350, 50, 600 , 80)
         own_account_label.setStyleSheet("background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")    
         own_account_label.setAlignment(Qt.AlignCenter)
         self.stacked_widget.addWidget(own_account_widget)
@@ -987,7 +1146,7 @@ class Main1Window(QMainWindow):
     def another_account_page(self):
         another_account_widget =QWidget()
         another_account_label = QLabel("<html><p> Funds to Transfer-To Other Account<p></html>", another_account_widget)
-        another_account_label.setGeometry(50, 50, 600 , 80)
+        another_account_label.setGeometry(350, 50, 600 , 80)
         another_account_label.setStyleSheet("background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")    
         another_account_label.setAlignment(Qt.AlignCenter)
         self.stacked_widget.addWidget(another_account_widget)
@@ -997,7 +1156,7 @@ class Main1Window(QMainWindow):
     def wallet_page(self):
         wallet_widget =QWidget()
         wallet_label = QLabel("<html><p> Funds to Transfer-To Wallet<p></html>", wallet_widget)
-        wallet_label.setGeometry(50, 50, 600 , 80)
+        wallet_label.setGeometry(350, 50, 600 , 80)
         wallet_label.setStyleSheet("background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")    
         wallet_label.setAlignment(Qt.AlignCenter)
         self.stacked_widget.addWidget(wallet_widget)
@@ -1008,7 +1167,7 @@ class Main1Window(QMainWindow):
     def loan_page(self):
         loan_widget =QWidget()
         loan_label = QLabel("<html><p> Loan <p></html>", loan_widget)
-        loan_label.setGeometry(50, 50, 600 , 80)
+        loan_label.setGeometry(350, 50, 600 , 80)
         loan_label.setStyleSheet("background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")    
         loan_label.setAlignment(Qt.AlignCenter)
 
@@ -1024,7 +1183,7 @@ class Main1Window(QMainWindow):
          # Set the icon position to the left side of the button
         loan_balance_button.setStyleSheet("""
                         QPushButton {
-                                     background-color: grey;
+                                     background-color: white;
                                      font-size: 12pt; 
                                      border-radius: 35px;
                                      text-align: left;  /* Align text to the left */
@@ -1063,7 +1222,7 @@ class Main1Window(QMainWindow):
          # Set the icon position to the left side of the button
         loan_request_button.setStyleSheet("""
                         QPushButton {
-                                     background-color: grey;
+                                     background-color: white;
                                      font-size: 12pt; 
                                      border-radius: 35px;
                                      text-align: left;  /* Align text to the left */
@@ -1106,7 +1265,7 @@ class Main1Window(QMainWindow):
         loan_balance_widget = QWidget()
        
         loan_balance_label = QLabel("<html><p>Check Loan Account Balance<p></>", loan_balance_widget)
-        loan_balance_label.setGeometry(50,50,600,80)
+        loan_balance_label.setGeometry(350,50,600,80)
         loan_balance_label.setStyleSheet(
             "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
         loan_balance_label.setAlignment(Qt.AlignCenter)
@@ -1120,7 +1279,7 @@ class Main1Window(QMainWindow):
         loan_request_widget = QWidget()
        
         loan_request_label = QLabel("<html><p>Loan Request<p></>", loan_request_widget)
-        loan_request_label.setGeometry(50,50,600,80)
+        loan_request_label.setGeometry(350,50,600,80)
         loan_request_label.setStyleSheet(
             "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
         loan_request_label.setAlignment(Qt.AlignCenter)
@@ -1134,7 +1293,7 @@ class Main1Window(QMainWindow):
     def profile_page(self):
         profile_widget =QWidget()
         profile_label = QLabel("<html><p> My Profile <p></html>", profile_widget)
-        profile_label.setGeometry(50, 50, 600 , 80)
+        profile_label.setGeometry(350, 50, 600 , 80)
         profile_label.setStyleSheet("background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")    
         profile_label.setAlignment(Qt.AlignCenter)
 
@@ -1151,7 +1310,7 @@ class Main1Window(QMainWindow):
          # Set the icon position to the left side of the button
         edit_profile_button.setStyleSheet("""
                         QPushButton {
-                                     background-color: grey;
+                                     background-color: white;
                                      font-size: 12pt; 
                                      border-radius: 35px;
                                      text-align: left;  /* Align text to the left */
@@ -1192,7 +1351,7 @@ class Main1Window(QMainWindow):
          # Set the icon position to the left side of the button
         password_button.setStyleSheet("""
                         QPushButton {
-                                     background-color: grey;
+                                     background-color: white;
                                      font-size: 12pt; 
                                      border-radius: 35px;
                                      text-align: left;  /* Align text to the left */
@@ -1219,56 +1378,730 @@ class Main1Window(QMainWindow):
         password_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(8))
         password_button.setParent(profile_widget)
 
+
+        # Notification 
+
+        notification_button = QPushButton(self)
+        notification_button.setGeometry(50, 360, 500, 50)
+        icon = QIcon("padlock.png")                  
+        # Set the icon size explicitly
+        icon_size = QSize(30, 30)  # Adjust the size as needed
+        notification_button.setIconSize(icon_size)
+
+         # Set the icon position to the left side of the button
+        notification_button.setStyleSheet("""
+                        QPushButton {
+                                     background-color: white;
+                                     font-size: 12pt; 
+                                     border-radius: 35px;
+                                     text-align: left;  /* Align text to the left */
+                                     padding-left: 40px;  /* Space for the icon */
+                                               
+                                     }          
+                        
+                        QPushButton::icon {
+                                     padding-right: 15px;  /* Space between icon and text */
+                                    }
+                        QPushButton:hover{
+                                     background-color:#333333
+                                    } 
+                                    
+                                                """)
+
+# Set the icon to the left of the button text
+        icon = QIcon("notification-bell.png")
+        notification_button.setIcon(icon)
+
+# Set the text for the button
+        notification_button.setText(" | Notification Option")
+
+        notification_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(19))
+        notification_button.setParent(profile_widget)
+
+
         self.stacked_widget.addWidget(profile_widget)
+
+    def notification_page(self):
+        notification_widget = QWidget()
+        notification_label = QLabel("<html><p> Notification <p></html>", notification_widget)
+        notification_label.setGeometry( 350, 50, 600 , 80)
+        notification_label.setStyleSheet( "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
+        notification_label.setAlignment(Qt.AlignCenter)
+        self.stacked_widget.addWidget(notification_widget)
 
     def edit_profile_page(self):
         edit_profile_widget = QWidget()
        
         edit_profile_label = QLabel("<html><p>Edit Profile<p></>", edit_profile_widget)
-        edit_profile_label.setGeometry(50,50,600,80)
+        edit_profile_label.setGeometry(350,50,600,80)
         edit_profile_label.setStyleSheet(
             "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
         edit_profile_label.setAlignment(Qt.AlignCenter)
        # profile_layout.addWidget(welcome_label)
 
-       
-        # Create a line edit for the email input field
-        email_input = QLineEdit(self)
-        email_input.setGeometry(50, 200, 350, 50)  # Adjust the position and size of the input field
-        # Set placeholder text for the email input field
-        email_input.setPlaceholderText(" Enter Email ")
-        # Apply styling to the email input field
-        email_input.setStyleSheet("background-color: grey; border-radius: 25px; padding: 10px; font-size: 16px;")
-        # Enable the clear button to clear the input
-        email_input.setClearButtonEnabled(True)
-        # Set an icon for the input field
-        icon = QIcon("message.png")  # Replace "icon.png" with the path to your icon file
-        email_input.addAction(icon, QLineEdit.LeadingPosition)
-        email_input.setParent(edit_profile_widget)
 
-       
+
+
+          #Add an edit email change button
+
+        change_email_button = QPushButton(self)
+        change_email_button.setGeometry(50, 200, 500, 50)
+        icon = QIcon("user.png")                  
+        # Set the icon size explicitly
+        icon_size = QSize(30, 30)  # Adjust the size as needed
+        change_email_button.setIconSize(icon_size)
+
+         # Set the icon position to the left side of the button
+        change_email_button.setStyleSheet("""
+                        QPushButton {
+                                     background-color: white;
+                                     font-size: 12pt; 
+                                     border-radius: 35px;
+                                     text-align: left;  /* Align text to the left */
+                                     padding-left: 40px;  /* Space for the icon */
+                                               
+                                     }          
+                        
+                        QPushButton::icon {
+                                     padding-right: 15px;  /* Space between icon and text */
+                                    }
+                        QPushButton:hover{
+                                     background-color:#333333
+                                    } 
+                                    
+                                                """)
+
+# Set the icon to the left of the button text
+        icon = QIcon("user.png")
+        change_email_button.setIcon(icon)
+
+# Set the text for the button
+        change_email_button.setText(" | Change Email Address")
+
+        change_email_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(20))
+        change_email_button.setParent(edit_profile_widget)
+
+
+
+          #Add an edit Mobile Number change button
+
+        change_number_button = QPushButton(self)
+        change_number_button.setGeometry(50, 280, 500, 50)
+        icon = QIcon("user.png")                  
+        # Set the icon size explicitly
+        icon_size = QSize(30, 30)  # Adjust the size as needed
+        change_number_button.setIconSize(icon_size)
+
+         # Set the icon position to the left side of the button
+        change_number_button.setStyleSheet("""
+                        QPushButton {
+                                     background-color: white;
+                                     font-size: 12pt; 
+                                     border-radius: 35px;
+                                     text-align: left;  /* Align text to the left */
+                                     padding-left: 40px;  /* Space for the icon */
+                                               
+                                     }          
+                        
+                        QPushButton::icon {
+                                     padding-right: 15px;  /* Space between icon and text */
+                                    }
+                        QPushButton:hover{
+                                     background-color:#333333
+                                    } 
+                                    
+                                                """)
+
+# Set the icon to the left of the button text
+        icon = QIcon("phone-call.png")
+        change_number_button.setIcon(icon)
+
+# Set the text for the button
+        change_number_button.setText(" | Change Mobile Number")
+
+        change_number_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(21))
+        change_number_button.setParent(edit_profile_widget)
+
+
+
 
         self.stacked_widget.addWidget(edit_profile_widget)
+
+
+    def email_page(self) :   
+        email_widget = QWidget()
+       
+        emai_label = QLabel("<html><p>Edit Profile<p></>", email_widget)
+        emai_label.setGeometry(350,50,600,80)
+        emai_label.setStyleSheet("background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
+        emai_label.setAlignment(Qt.AlignCenter)
+         
+       
+        # Create a line edit for the email input field
+        self.email_input = QLineEdit(self)
+        self.email_input.setGeometry(50, 200, 350, 50)  # Adjust the position and size of the input field
+        # Set placeholder text for the email input field
+        self.email_input.setPlaceholderText(" Current Email Address ")
+        # Apply styling to the email input field
+        self.email_input.setStyleSheet("background-color: white; border-radius: 25px; padding: 10px; font-size: 16px;")
+        # Enable the clear button to clear the input
+        self.email_input.setClearButtonEnabled(True)
+        # Set an icon for the input field
+        icon = QIcon("message.png")  # Replace "icon.png" with the path to your icon file
+        self.email_input.addAction(icon, QLineEdit.LeadingPosition)
+               # Connect textChanged signal to validate_email slot
+        self.email_input.textChanged.connect(self.validate_email)
+        self.email_input.editingFinished.connect(self.reset_email_input_style)
+        self.email_input.setParent(email_widget)
+
+
+         
+        # Create a line edit for the email input field
+        self.new_email_input = QLineEdit(self)
+        self.new_email_input.setGeometry(50, 280, 350, 50)  # Adjust the position and size of the input field
+        # Set placeholder text for the email input field
+        self.new_email_input.setPlaceholderText("  New Email Address ")
+        # Apply styling to the email input field
+        self.new_email_input.setStyleSheet("background-color: white; border-radius: 25px; padding: 10px; font-size: 16px;")
+        # Enable the clear button to clear the input
+        self.new_email_input.setClearButtonEnabled(True)
+        # Set an icon for the input field
+        icon = QIcon("message.png")  # Replace "icon.png" with the path to your icon file
+        self.new_email_input.addAction(icon, QLineEdit.LeadingPosition)
+               # Connect textChanged signal to validate_email slot
+        self.new_email_input.textChanged.connect(self.validate_new_email)
+        self.new_email_input.editingFinished.connect(self.reset_new_email_input_style)
+        self.new_email_input.setParent(email_widget)
+
+          # Create a line edit for the email input field
+        self.confirm_email_input = QLineEdit(self)
+        self.confirm_email_input.setGeometry(50, 360, 350, 50)  # Adjust the position and size of the input field
+        # Set placeholder text for the email input field
+        self.confirm_email_input.setPlaceholderText(" Confirm New Email Address ")
+        # Apply styling to the email input field
+        self.confirm_email_input.setStyleSheet("background-color: white; border-radius: 25px; padding: 10px; font-size: 16px;")
+        # Enable the clear button to clear the input
+        self.confirm_email_input.setClearButtonEnabled(True)
+        # Set an icon for the input field
+        icon = QIcon("message.png")  # Replace "icon.png" with the path to your icon file
+        self.confirm_email_input.addAction(icon, QLineEdit.LeadingPosition)
+               # Connect textChanged signal to validate_email slot
+        self.confirm_email_input.textChanged.connect(self.validate_confirm_email)
+        self.confirm_email_input.editingFinished.connect(self.reset_confirm_email_input_style)
+        self.confirm_email_input.setParent(email_widget)
+
+
+        
+        self.save_and_submit_button = QPushButton("Save and Submit", self)
+        button_width = 300  # Adjust the width of the button as needed
+        button_x = (self.width() - button_width) // 3  # Center the button horizontally
+        self.save_and_submit_button.setGeometry(button_x, 700, button_width, 70)
+        self.save_and_submit_button.setStyleSheet("""
+                     QPushButton {
+                     background-color: blue;
+                      font-size: 18pt; 
+                      border-radius: 35px;
+                      }
+                       QPushButton:hover{
+                          background-color:brown
+                      }
+                  """)
+        self.save_and_submit_button.clicked.connect(self.save_and_submit)
+    
+        self.save_and_submit_button.setParent(email_widget)
+      #  self.save_and_submit_button.clicked.connect(self.save_user_details)
+        self.stacked_widget.addWidget(email_widget)
+
+    
+    def save_and_submit(self):
+
+          if self.new_email_input == self.confirm_email_input:
+            # Display a message box indicating password mismatch
+             QMessageBox.information(self, "Email match", "Successfully saved ")
+                         
+          else :
+             
+              QMessageBox.warning(self, "Email Mismatch", "New email and confirm email do not match.")
+                             
+
+
+
+    def mobile_number_page(self):
+        number_widget = QWidget()
+       
+        number_label = QLabel("<html><p>Edit Profile<p></>", number_widget)
+        number_label.setGeometry(350,50,600,80)
+        number_label.setStyleSheet("background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
+        number_label.setAlignment(Qt.AlignCenter)
+         
+
+         # Create a line edit for the Phone Number input field
+        self.number_input = QLineEdit(self)
+        self.number_input.setGeometry(50, 200, 350, 50)  # Adjust the position and size of the input field
+        # Set placeholder text for the email input field
+        self.number_input.setPlaceholderText(" Enter Current Phone Number ")
+        # Apply styling to the email input field
+        self.number_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+        # Enable the clear button to clear the input
+        self.number_input.setClearButtonEnabled(True)
+        icon =QIcon("phone-call")
+        self.number_input.addAction(icon,QLineEdit.LeadingPosition)
+
+
+        self.number_input.textChanged.connect(self.validate_number)
+        self.number_input.editingFinished.connect(self.reset_number_input_style)
+        self.number_input.setParent(number_widget)
+
+
+         # Create a line edit for the New Phone Number input field
+        self.new_number_input = QLineEdit(self)
+        self.new_number_input.setGeometry(50, 280, 350, 50)  # Adjust the position and size of the input field
+        # Set placeholder text for the email input field
+        self.new_number_input.setPlaceholderText(" Enter Current Phone Number ")
+        # Apply styling to the email input field
+        self.new_number_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+        # Enable the clear button to clear the input
+        self.new_number_input.setClearButtonEnabled(True)
+        icon =QIcon("phone-call")
+        self.new_number_input.addAction(icon,QLineEdit.LeadingPosition)
+
+
+        self.new_number_input.textChanged.connect(self.validate_new_number)
+        self.new_number_input.editingFinished.connect(self.reset_new_number_input_style)
+        self.new_number_input.setParent(number_widget) 
+
+        
+         # Create a line edit for the Confirm new Phone Number input field
+        self.confirm_number_input = QLineEdit(self)
+        self.confirm_number_input.setGeometry(50, 360, 350, 50)  # Adjust the position and size of the input field
+        # Set placeholder text for the email input field
+        self.confirm_number_input.setPlaceholderText(" Enter Current Phone Number ")
+        # Apply styling to the email input field
+        self.confirm_number_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+        # Enable the clear button to clear the input
+        self.confirm_number_input.setClearButtonEnabled(True)
+        icon =QIcon("phone-call")
+        self.confirm_number_input.addAction(icon,QLineEdit.LeadingPosition)
+
+        self.confirm_number_input.textChanged.connect(self.validate_confirm_number)
+        self.confirm_number_input.editingFinished.connect(self.reset_confirm_number_input_style)
+
+
+        self.confirm_number_input.setParent(number_widget)
+        # Set an icon for the input field
+        #icon = QIcon("message.png")  # Replace "icon.png" with the path to your icon file
+        #self.number_input.addAction(icon, QLineEdit.LeadingPosition)
+
+
+        self.save_and_submit_button = QPushButton("Save and Submit", self)
+        button_width = 300  # Adjust the width of the button as needed
+        button_x = (self.width() - button_width) // 3  # Center the button horizontally
+        self.save_and_submit_button.setGeometry(button_x, 700, button_width, 70)
+        self.save_and_submit_button.setStyleSheet("""
+                     QPushButton {
+                     background-color: blue;
+                      font-size: 18pt; 
+                      border-radius: 35px;
+                      }
+                       QPushButton:hover{
+                          background-color:brown
+                      }
+                  """)
+        self.save_and_submit_button.setParent(number_widget)
+      #  self.save_and_submit_button.clicked.connect(self.save_user_details)
+
+    
+       
+
+        self.stacked_widget.addWidget(number_widget)
+
+    def validate_number(self,text):
+        number_pattern = r'^[0-9]{10}$'  # Assuming a 10-digit phone number
+
+        number_regex = re.compile(number_pattern)
+
+        if number_regex.match(text):
+            # Valid email format
+            self.number_input.setStyleSheet("border-radius: 25px; border: 2px solid green;")
+        else:
+            # Invalid email format
+            self.number_input.setStyleSheet("border-radius: 25px;  border: 5px solid red;")
+
+            # Set font size back to normal
+            font = self.number_input.font()
+            font.setPointSize(10)  # Adjust the font size as needed
+            self.number_input.setFont(font)   
+
+    def validate_new_number(self,text):
+        number_pattern = r'^[0-9]{10}$'  # Assuming a 10-digit phone number
+
+        number_regex = re.compile(number_pattern)
+
+        if number_regex.match(text):
+            # Valid email format
+            self.new_number_input.setStyleSheet("border-radius: 25px; border: 2px solid green;")
+        else:
+            # Invalid email format
+            self.new_number_input.setStyleSheet("border-radius: 25px;  border: 5px solid red;")
+
+            # Set font size back to normal
+            font = self.number_input.font()
+            font.setPointSize(10)  # Adjust the font size as needed
+            self.new_number_input.setFont(font)   
+
+    def validate_confirm_number(self,text):
+        number_pattern = r'^[0-9]{10}$'  # Assuming a 10-digit phone number
+
+        number_regex = re.compile(number_pattern)
+
+        if number_regex.match(text):
+            # Valid email format
+            self.confirm_number_input.setStyleSheet("border-radius: 25px; border: 2px solid green;")
+        else:
+            # Invalid email format
+            self.confirm_number_input.setStyleSheet("border-radius: 25px;  border: 5px solid red;")
+
+            # Set font size back to normal
+            font = self.number_input.font()
+            font.setPointSize(10)  # Adjust the font size as needed
+            self.confirm_number_input.setFont(font)   
+
+         
+
+        
+
+
+
+    def validate_email(self, text):
+        # Regular expression pattern for validating email addresses
+        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+
+        # Compile the pattern into a regular expression object
+        regex = re.compile(pattern)
+
+        # Use match method to check if the input text matches the pattern
+        if regex.match(text):
+            # Valid email format
+            self.email_input.setStyleSheet("border-radius: 25px; border: 2px solid green;")
+        else:
+            # Invalid email format
+            self.email_input.setStyleSheet("border-radius: 25px;  border: 5px solid red;")
+
+            # Set font size back to normal
+            font = self.email_input.font()
+            font.setPointSize(10)  # Adjust the font size as needed
+            self.email_input.setFont(font) 
+
+    def validate_new_email(self, text):
+        # Regular expression pattern for validating email addresses
+        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+
+        # Compile the pattern into a regular expression object
+        regex = re.compile(pattern)
+
+        # Use match method to check if the input text matches the pattern
+        if regex.match(text):
+            # Valid email format
+            self.new_email_input.setStyleSheet("border-radius: 25px; border: 2px solid green;")
+        else:
+            # Invalid email format
+            self.new_email_input.setStyleSheet("border-radius: 25px;  border: 5px solid red;")
+
+            # Set font size back to normal
+            font = self.new_email_input.font()
+            font.setPointSize(10)  # Adjust the font size as needed
+            self.new_email_input.setFont(font)   
+
+    def validate_confirm_email(self, text):
+        email = self.new_email_input.text()
+        confirmation_email = self.confirm_email_input.text()
+
+        # Check if the confirmation password matches the original password
+        if email == confirmation_email:
+            # Matching passwords, apply green border
+                       self.confirm_email_input.setStyleSheet("border-radius: 25px; border: 2px solid green;")
+        else:
+            # Non-matching passwords, apply red border
+                  self.confirm_email_input.setStyleSheet("border-radius: 25px; border: 2px solid red;")
+   
+            # Set font size back to normal
+        font = self.confirm_email_input.font()
+        font.setPointSize(10)  # Adjust the font size as needed
+        self.confirm_email_input.setFont(font)   
+
+
+    @pyqtSlot()
+    def reset_number_input_style(self):
+        # Reset the stylesheet when the user leaves the input field
+        self.number_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+
+
+    @pyqtSlot()
+    def reset_new_number_input_style(self):
+        # Reset the stylesheet when the user leaves the input field
+        self.new_number_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+
+    @pyqtSlot()
+    def reset_confirm_number_input_style(self):
+        # Reset the stylesheet when the user leaves the input field
+        self.confirm_number_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+
+    
+
+     
+
+
+
+
+
+    @pyqtSlot()
+    def reset_email_input_style(self):
+        # Reset the stylesheet when the user leaves the input field
+        self.email_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+
+    
+
+    @pyqtSlot()
+    def reset_new_email_input_style(self):
+        # Reset the stylesheet when the user leaves the input field
+        self.new_email_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+
+    
+
+    @pyqtSlot()
+    def reset_confirm_email_input_style(self):
+        # Reset the stylesheet when the user leaves the input field
+        self.confirm_email_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+                  
+         
 
 
     def change_password_page(self):
         change_password_widget = QWidget()
        
         change_password_label = QLabel("<html><p>Change Password<p></>", change_password_widget)
-        change_password_label.setGeometry(50,50,600,80)
+        change_password_label.setGeometry(300,50,600,80)
         change_password_label.setStyleSheet(
             "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
         change_password_label.setAlignment(Qt.AlignCenter)
        # profile_layout.addWidget(welcome_label)
+
+       
+        # Create a line edit for password input field
+        self.password_input = QLineEdit(self)
+        self.password_input.setGeometry(50, 200, 350, 50)
+        # Set placeholder text for the password input field
+        self.password_input.setPlaceholderText("Enter Current Password")
+        # Appply styling to the password input field
+        self.password_input.setStyleSheet("border-radius: 25; padding : 10px; font-size: 16px; ")
+        # Enable the clear button to the clear input
+        self.password_input.setClearButtonEnabled(True)
+        # Set an icon for the input field
+        icon = QIcon("padlock.png")
+        self.password_input.addAction(icon, QLineEdit.LeadingPosition)
+        self.password_input.setEchoMode(QLineEdit.Password)
+        self.password_input.textChanged.connect(self.validate_password)
+        self.password_input.editingFinished.connect(self.reset_password_input_style)
+        self.password_input.setParent(change_password_widget)
+
+
+        # Create checkbox to toggle password visibility
+        self.show_password_checkbox = QCheckBox("Show Password", self)
+        self.show_password_checkbox.setStyleSheet("color: black; font-size : 16px")
+        self.show_password_checkbox.setGeometry(40, 247, 200, 30)
+        self.show_password_checkbox.stateChanged.connect(self.toggle_password_visibility)
+
+        self.show_password_checkbox.setParent(change_password_widget)
+
+
+          # Create a line edit for New password input field
+        self.new_password_input = QLineEdit(self)
+        self.new_password_input.setGeometry(50, 300, 350, 50)
+        # Set placeholder text for the password input field
+        self.new_password_input.setPlaceholderText("Enter New  Password")
+        # Appply styling to the password input field
+        self.new_password_input.setStyleSheet("border-radius: 25; padding : 10px; font-size: 16px; ")
+        # Enable the clear button to the clear input
+        self.new_password_input.setClearButtonEnabled(True)
+        # Set an icon for the input field
+        icon = QIcon("padlock.png")
+        self.new_password_input.addAction(icon, QLineEdit.LeadingPosition)
+        self.new_password_input.setEchoMode(QLineEdit.Password)
+        self.new_password_input.textChanged.connect(self.validate_new_password)
+        self.new_password_input.editingFinished.connect(self.reset_new_password_input_style)
+        self.new_password_input.setParent(change_password_widget)
+
+           # Create checkbox to toggle password visibility
+        self.show_password_checkbox = QCheckBox("Show Password", self)
+        self.show_password_checkbox.setStyleSheet("color: black; font-size : 16px")
+        self.show_password_checkbox.setGeometry(40, 347, 200, 30)
+        self.show_password_checkbox.stateChanged.connect(self.toggle_password_visibility1)
+
+
+
+        self.show_password_checkbox.setParent(change_password_widget)
+
+
+        
+          # Create a line edit for Confirmpassword input field
+        self.confirm_password_input = QLineEdit(self)
+        self.confirm_password_input.setGeometry(50, 400, 350, 50)
+        # Set placeholder text for the password input field
+        self.confirm_password_input.setPlaceholderText("Confirm New Password")
+        # Appply styling to the password input field
+        self.confirm_password_input.setStyleSheet("border-radius: 25; padding : 10px; font-size: 16px; ")
+        # Enable the clear button to the clear input
+        self.confirm_password_input.setClearButtonEnabled(True)
+        # Set an icon for the input field
+        icon = QIcon("padlock.png")
+        self.confirm_password_input.addAction(icon, QLineEdit.LeadingPosition)
+        self.confirm_password_input.setEchoMode(QLineEdit.Password)
+        self.confirm_password_input.textChanged.connect(self.validate_confirm_password)
+        self.confirm_password_input.setParent(change_password_widget)
+
+               # Create checkbox to toggle password visibility
+        self.show_password_checkbox = QCheckBox("Show Password", self)
+        self.show_password_checkbox.setStyleSheet("color: black; font-size : 16px")
+        self.show_password_checkbox.setGeometry(40, 447, 200, 30)
+        self.show_password_checkbox.stateChanged.connect(self.toggle_password_visibility2)
+        self.show_password_checkbox.setParent(change_password_widget)
+
+
+        self.save_and_submit_button = QPushButton("Save and Submit", self)
+        button_width = 300  # Adjust the width of the button as needed
+        button_x = (self.width() - button_width) // 3  # Center the button horizontally
+        self.save_and_submit_button.setGeometry(button_x, 700, button_width, 70)
+        self.save_and_submit_button.setStyleSheet("""
+                     QPushButton {
+                     background-color: blue;
+                      font-size: 18pt; 
+                      border-radius: 35px;
+                      }
+                       QPushButton:hover{
+                          background-color:brown
+                      }
+                  """)
+        self.save_and_submit_button.setParent(change_password_widget)
+      #  self.save_and_submit_button.clicked.connect(self.save_user_details)
+
+    
+
+        self.stacked_widget.addWidget(change_password_widget)  
+
+
+
+    def toggle_password_visibility(self, state):
+        if state == Qt.Checked:
+            # Show password
+            self.password_input.setEchoMode(QLineEdit.Normal)
+        else:
+            # Hide password
+            self.password_input.setEchoMode(QLineEdit.Password)
+
+    def toggle_password_visibility1(self, state):
+        if state == Qt.Checked:
+            # Show password
+            self.new_password_input.setEchoMode(QLineEdit.Normal)
+        else:
+            # Hide password
+            self.new_password_input.setEchoMode(QLineEdit.Password)
+
+    def toggle_password_visibility2(self, state):
+        if state == Qt.Checked:
+            # Show password
+            self.confirm_password_input.setEchoMode(QLineEdit.Normal)
+        else:
+            # Hide password
+            self.confirm_password_input.setEchoMode(QLineEdit.Password)
+        
+
+
+    def validate_password(self, password):
+       
+        password_pattern = r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?!.*\s).{8,}$'
+
+        # Compile the pattern into a regular expression object
+        regex = re.compile(password_pattern)
+
+        # Use match method to check if the input password matches the pattern
+        if regex.match(password):
+            self.password_input.setStyleSheet("border-radius: 25px; border: 2px solid green;")
+        else:
+            # Invalid email format
+            self.password_input.setStyleSheet("border-radius: 25px;  border: 5px solid red;")
+
+
+
+            # Set font size back to normal
+        font = self.password_input.font()
+        font.setPointSize(10)  # Adjust the font size as needed
+        self.password_input.setFont(font)
+
+
+    def validate_new_password(self, password):
+       
+        password_pattern = r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?!.*\s).{8,}$'
+
+        # Compile the pattern into a regular expression object
+        regex = re.compile(password_pattern)
+
+        # Use match method to check if the input password matches the pattern
+        if regex.match(password):
+            self.new_password_input.setStyleSheet("border-radius: 25px; border: 2px solid green;")
+        else:
+            # Invalid email format
+            self.new_password_input.setStyleSheet("border-radius: 25px;  border: 5px solid red;")
+
+
+
+            # Set font size back to normal
+        font = self.new_password_input.font()
+        font.setPointSize(10)  # Adjust the font size as needed
+        self.new_password_input.setFont(font)
+
+    def validate_confirm_password(self, password):
        
 
-        self.stacked_widget.addWidget(change_password_widget)     
+            # Get the content of both password fields
+        password = self.new_password_input.text()
+        confirmation_password = self.confirm_password_input.text()
+
+        # Check if the confirmation password matches the original password
+        if password == confirmation_password:
+            # Matching passwords, apply green border
+            self.confirm_password_input.setStyleSheet("border-radius: 25px; border: 2px solid green;")
+        else:
+            # Non-matching passwords, apply red border
+            self.confirm_password_input.setStyleSheet("border-radius: 25px; border: 2px solid red;")
+   
+
+            # Set font size back to normal
+        font = self.confirm_password_input.font()
+        font.setPointSize(10)  # Adjust the font size as needed
+        self.confirm_password_input.setFont(font)
+    
+    
+    @pyqtSlot()
+    def reset_password_input_style(self):
+        # Reset the stylesheet when the user leaves the input field
+        self.password_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+
+    @pyqtSlot()
+    def reset_new_password_input_style(self):
+        # Reset the stylesheet when the user leaves the input field
+        self.new_password_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+
+
+
     
 
 
 
 
-
+    def load1_image(self):
+        pixmap = QPixmap(self.image_path[0])
+        self.image_label.setPixmap(pixmap)
+        self.image_label.setScaledContents(True)
 
 
     def load_image(self):
@@ -1276,7 +2109,7 @@ class Main1Window(QMainWindow):
         self.image_label.setPixmap(pixmap)
         self.image_label.setScaledContents(True)  # Ensure the image fits into the QLabel
        
-
+    
 
 
 class RegisterWindow(QMainWindow):
@@ -1288,11 +2121,11 @@ class RegisterWindow(QMainWindow):
         self.last_name = ""
         self.dob = ""
         self.gender = ""
-        self.email = ""
         self.phone_number =""
+        self.email = ""
 
         self.setWindowTitle("Register Window")
-        self.setGeometry(100, 100, 900, 900)
+        self.setGeometry(100, 100, 1500, 900)
 
         # Create central widget and layout
         self.central_widget = QWidget()
@@ -1301,30 +2134,30 @@ class RegisterWindow(QMainWindow):
 
         # Create a QLabel to hold the image
         self.image_label = QLabel(self.central_widget)
-        self.image_label.setGeometry(0, 0, 900, 900)
+        self.image_label.setGeometry(0, 0, 1500, 900)
 
         # Loading a list of images
-        self.image_paths = ["image10.jpg"]
+        self.image_paths = ["desk.jpg"]
 
         # Load intial image
         self.load_image()
 
         # Label for "WELCOME"
         self.welcome_label = QLabel("<html><p>Create New</><p> Account</>", self)
-        label_width = 200  # Adjust the width of the label as needed
-        label_height = 900
+        label_height = 200  # Adjust the width of the label as needed
+        label_width = 900
         # label_x = (self.width() - label_width) // 2  # Center the label horizontally
         # label_y = 20
-        self.welcome_label.setGeometry(0, 10, label_height, label_width)
+        self.welcome_label.setGeometry(300, 10,  label_width, label_height)
         self.welcome_label.setStyleSheet(
-            "background-color: white; color: black; padding: 20px; border-radius: 20px; font-size: 18pt;")
+            "background-color: black; color: white; padding: 20px; border-radius: 20px; font-size: 18pt;")
         self.welcome_label.setAlignment(Qt.AlignCenter)
 
 
 
         # Line edit for account selection
         self.account_line_edit = QLineEdit(self)
-        self.account_line_edit.setGeometry(280, 225, 350, 50)
+        self.account_line_edit.setGeometry(575, 225, 350, 50)
         self.account_line_edit.setPlaceholderText("Select account type...")
         self.account_line_edit.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
         self.account_line_edit.setReadOnly(True)
@@ -1334,7 +2167,7 @@ class RegisterWindow(QMainWindow):
         self.dropdown_button = QToolButton(self)
         self.dropdown_button.setText("▼")
         self.dropdown_button.setStyleSheet("font-size: 16px; color : black; border : none")
-        self.dropdown_button.setGeometry(600, 225, 20, 50)
+        self.dropdown_button.setGeometry(900, 225, 20, 50)
         self.dropdown_button.clicked.connect(self.show_menu)
 
 
@@ -1347,7 +2180,7 @@ class RegisterWindow(QMainWindow):
 
         # Create a line edit for the First Name input field
         self.first_name_input = QLineEdit(self)
-        self.first_name_input.setGeometry(280, 285, 350, 50)  # Adjust the position and size of the input field
+        self.first_name_input.setGeometry(575, 285, 350, 50)  # Adjust the position and size of the input field
         # Set placeholder text for the date of birth input field
         self.first_name_input.setPlaceholderText("First Name")
         # Apply styling to the date of birth input field
@@ -1360,7 +2193,7 @@ class RegisterWindow(QMainWindow):
 
         # Create a line edit for the Last Name input field
         self.last_name_input = QLineEdit(self)
-        self.last_name_input.setGeometry(280, 345, 350, 50)  # Adjust the position and size of the input field
+        self.last_name_input.setGeometry(575, 345, 350, 50)  # Adjust the position and size of the input field
         # Set placeholder text for the date of birth input field
         self.last_name_input.setPlaceholderText("Last Name")
         # Apply styling to the date of birth input field
@@ -1373,7 +2206,7 @@ class RegisterWindow(QMainWindow):
 
          # Create a line edit for date of birth
         self.dob_input = QLineEdit(self)
-        self.dob_input.setGeometry(280, 405, 350, 50)  # Adjust position and size
+        self.dob_input.setGeometry(575, 405, 350, 50)  # Adjust position and size
         self.dob_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
         self.dob_input.setPlaceholderText("Date Of Birth")  # Placeholder text for format
         self.dob_input.setReadOnly(True)
@@ -1385,7 +2218,7 @@ class RegisterWindow(QMainWindow):
         self.dropdown_button3 = QToolButton(self)
         self.dropdown_button3.setText("▼")
         self.dropdown_button3.setStyleSheet("font-size: 16px; color : black; border : none")
-        self.dropdown_button3.setGeometry(600, 405, 20, 50)
+        self.dropdown_button3.setGeometry(900, 405, 20, 50)
         self.dropdown_button3.clicked.connect(self.showCalendar)
        # self.dob_input.setCalendarPopup(True) 
         #self.dob_input.setButtonSymbols(QDateEdit.CalendarButton)
@@ -1393,14 +2226,14 @@ class RegisterWindow(QMainWindow):
 
         # Calendar widget
         self.calendar = QCalendarWidget(self)
-        self.calendar.setGeometry(600, 550, 350, 250)  # Adjust position and size
+        self.calendar.setGeometry(900, 550, 350, 250)  # Adjust position and size
         self.calendar.setWindowFlags(Qt.Popup)
         self.calendar.selectionChanged.connect(self.updateDate)
 
         
         # Line edit for Gender Selection
         self.gender_line_edit = QLineEdit(self)
-        self.gender_line_edit.setGeometry(280, 470, 350, 50)
+        self.gender_line_edit.setGeometry(575, 470, 350, 50)
         self.gender_line_edit.setPlaceholderText("Gender")
         self.gender_line_edit.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
         self.gender_line_edit.setReadOnly(True)
@@ -1410,7 +2243,7 @@ class RegisterWindow(QMainWindow):
         self.dropdown_button1 = QToolButton(self)
         self.dropdown_button1.setText("▼")
         self.dropdown_button1.setStyleSheet("font-size: 16px; color : black; border : none")
-        self.dropdown_button1.setGeometry(600, 470, 20, 50)
+        self.dropdown_button1.setGeometry(900, 470, 20, 50)
         self.dropdown_button1.clicked.connect(self.show_menu2)
 
         # Create a menu for Gender selection
@@ -1421,7 +2254,7 @@ class RegisterWindow(QMainWindow):
 
         # Create a line edit for the Phone Number input field
         self.number_input = QLineEdit(self)
-        self.number_input.setGeometry(280, 530, 350, 50)  # Adjust the position and size of the input field
+        self.number_input.setGeometry(575, 530, 350, 50)  # Adjust the position and size of the input field
         # Set placeholder text for the email input field
         self.number_input.setPlaceholderText(" Phone Number ")
         # Apply styling to the email input field
@@ -1431,6 +2264,8 @@ class RegisterWindow(QMainWindow):
         # Set an icon for the input field
         #icon = QIcon("message.png")  # Replace "icon.png" with the path to your icon file
         #self.number_input.addAction(icon, QLineEdit.LeadingPosition)
+        icon =QIcon("phone-call")
+        self.number_input.addAction(icon,QLineEdit.LeadingPosition)
 
         self.number_input.textChanged.connect(self.validate_number)
         self.number_input.editingFinished.connect(self.reset_number_input_style)
@@ -1438,7 +2273,7 @@ class RegisterWindow(QMainWindow):
 
         # Create a line edit for the email input field
         self.email_input = QLineEdit(self)
-        self.email_input.setGeometry(280, 590, 350, 50)  # Adjust the position and size of the input field
+        self.email_input.setGeometry(575, 590, 350, 50)  # Adjust the position and size of the input field
         # Set placeholder text for the email input field
         self.email_input.setPlaceholderText(" Enter Email ")
         # Apply styling to the email input field
@@ -1453,12 +2288,7 @@ class RegisterWindow(QMainWindow):
         self.email_input.textChanged.connect(self.validate_email)
         self.email_input.editingFinished.connect(self.reset_email_input_style)
 
-        
-        # Create QLabel for notification messages
-        self.notification_label = QLabel("", self)
-        self.notification_label.setGeometry(280, 650, 350, 50)
-        self.notification_label.setStyleSheet("color: blue; font-size: 25px;")
-
+    
         self.login_button = QPushButton("login", self)
         button_width = 300  # Adjust the width of the button as needed
         button_x = (self.width() - button_width) // 2  # Center the button horizontally
@@ -1491,6 +2321,14 @@ class RegisterWindow(QMainWindow):
                   }
               """)
         self.continue_button.clicked.connect(self.validate_inputs)
+
+
+            
+        # Create QLabel for notification messages
+        self.notification_label = QLabel("", self)
+        self.notification_label.setGeometry(575, 650, 400, 50)
+        self.notification_label.setStyleSheet("color: red; font-size: 25px;")
+
 
     def showCalendar(self):
         # Show a calendar popup for date selection
@@ -1531,14 +2369,14 @@ class RegisterWindow(QMainWindow):
             self.notification_label.setText("Please select your gender.")
             self.notification_label.show()
             return
-
-        if self.email_input.text().strip() == "":
-            self.notification_label.setText("Please enter your email.")
+        
+        if self.number_input.text().strip() == "":
+            self.notification_label.setText("Please enter your phone number.")
             self.notification_label.show()
             return
 
-        if self.number_input.text().strip() == "":
-            self.notification_label.setText("Please enter your phone number.")
+        if self.email_input.text().strip() == "":
+            self.notification_label.setText("Please enter your email.")
             self.notification_label.show()
             return
 
@@ -1649,9 +2487,9 @@ class RegisterWindow(QMainWindow):
         account_type = self.account_line_edit.text()
         first_name = self.first_name_input.text()
         last_name = self.last_name_input.text()
-        dob_raw = self.dob_input.text()
+        dob= self.dob_input.text()
         try:
-            dob = datetime.datetime.strptime(dob_raw, "%Y-%m-%d").strftime("%Y-%m-%d")
+            dob = datetime.strptime(dob, "%Y-%m-%d").strftime("%Y-%m-%d")
         except ValueError:
     # Handle invalid date format
          QMessageBox.warning(self, "Error", "Invalid date format. Please enter in YYYY-MM-DD format.")
@@ -1711,7 +2549,7 @@ class continueWindow(QMainWindow):
     def __init__(self, SessionId, account_type, first_name, last_name,  dob, gender, email ,phone_number):
         super().__init__()
         self.setWindowTitle("Continue Window")
-        self.setGeometry(100, 100, 900, 900)
+        self.setGeometry(100, 100, 1500, 900)
         self.SessionId = SessionId
         self.account_type = account_type  # Inherit account_type from parent class
         self.first_name = first_name  # Inherit first_name from parent class
@@ -1732,30 +2570,30 @@ class continueWindow(QMainWindow):
 
         # Create a QLabel to hold the image
         self.image_label = QLabel(self.central_widget)
-        self.image_label.setGeometry(0, 0, 900, 900)
+        self.image_label.setGeometry(0, 0, 1500, 900)
 
         # Loading a list of images
-        self.image_paths = ["image10.jpg"]
+        self.image_paths = ["desk.jpg"]
 
         # Load intial image
         self.load_image()
 
         # Label for "WELCOME"
         self.welcome_label = QLabel("<html><p>Create New</><p> Account</>", self)
-        label_width = 200  # Adjust the width of the label as needed
-        label_height = 900
+        label_height= 200  # Adjust the width of the label as needed
+        label_width = 900
         # label_x = (self.width() - label_width) // 2  # Center the label horizontally
         # label_y = 20
-        self.welcome_label.setGeometry(0, 10, label_height, label_width)
+        self.welcome_label.setGeometry(300, 10, label_width, label_height)
         self.welcome_label.setStyleSheet(
-            "background-color: white; color: black; padding: 20px; border-radius: 20px; font-size: 18pt;")
+            "background-color: black; color: white; padding: 20px; border-radius: 20px; font-size: 18pt;")
         self.welcome_label.setAlignment(Qt.AlignCenter)
 
 
 
         # Create a line edit for password input field
         self.password_input = QLineEdit(self)
-        self.password_input.setGeometry(280, 225, 350, 50)
+        self.password_input.setGeometry(575, 225, 350, 50)
         # Set placeholder text for the password input field
         self.password_input.setPlaceholderText("Enter Password")
         # Appply styling to the password input field
@@ -1769,7 +2607,7 @@ class continueWindow(QMainWindow):
 
         # Create a line edit for confirming password input field
         self.confirm_password_input = QLineEdit(self)
-        self.confirm_password_input.setGeometry(280, 320, 350, 50)
+        self.confirm_password_input.setGeometry(575, 320, 350, 50)
         self.confirm_password_input.setPlaceholderText("Confirm Password")
         self.confirm_password_input.setStyleSheet("border-radius: 25; padding : 10px; font-size: 16px; ")
         self.confirm_password_input.setClearButtonEnabled(True)
@@ -1782,13 +2620,13 @@ class continueWindow(QMainWindow):
         # Create checkbox to toggle password visibility
         self.show_password_checkbox = QCheckBox("Show Password", self)
         self.show_password_checkbox.setStyleSheet("color: black; font-size : 16px")
-        self.show_password_checkbox.setGeometry(280, 280, 200, 30)
+        self.show_password_checkbox.setGeometry(570, 280, 200, 30)
         self.show_password_checkbox.stateChanged.connect(self.toggle_password_visibility)
 
         # Create checkbox to toggle password visibility
         self.show_password_checkbox = QCheckBox("Show Password", self)
         self.show_password_checkbox.setStyleSheet("color: black; font-size : 16px")
-        self.show_password_checkbox.setGeometry(280, 375, 200, 30)
+        self.show_password_checkbox.setGeometry(570, 375, 200, 30)
         self.show_password_checkbox.stateChanged.connect(self.toggle_password_visibility2)
 
         self.password_input.textChanged.connect(self.validate_password)
@@ -1797,7 +2635,7 @@ class continueWindow(QMainWindow):
 
         # Create QLabel for notification messages
         self.notification_label = QLabel("", self)
-        self.notification_label.setGeometry(280, 700, 350, 50)
+        self.notification_label.setGeometry(575, 700, 350, 50)
         self.notification_label.setStyleSheet("color: blue; font-size: 25px;")
 
         #login
@@ -1858,27 +2696,27 @@ class continueWindow(QMainWindow):
 
         # Create QLabel to display password rules
         self.password_rules_label = QLabel(self)
-        self.password_rules_label.setGeometry(280, 400, 600, 50)
+        self.password_rules_label.setGeometry(575, 400, 600, 50)
         self.password_rules_label.setStyleSheet("color: black; font-size: 16px;")
         self.password_rules_label.setText(
             "<html>Password must contain : <br> ✓ At least 8 characters </html>" )
         self.password_rules_label1 = QLabel(self)
-        self.password_rules_label1.setGeometry(280, 425, 600, 50)
+        self.password_rules_label1.setGeometry(575, 425, 600, 50)
         self.password_rules_label1.setStyleSheet("color: black; font-size: 16px;")
         self.password_rules_label1.setText(
             "<html> ✓ 1 Uppercase[A-Z] </html>")
         self.password_rules_label2 = QLabel(self)
-        self.password_rules_label2.setGeometry(280, 445, 600, 50)
+        self.password_rules_label2.setGeometry(575, 445, 600, 50)
         self.password_rules_label2.setStyleSheet("color: black; font-size: 16px;")
         self.password_rules_label2.setText(
             "<html> ✓ 1 Lowercase [a-z] </html>" )
         self.password_rules_label3 = QLabel(self)
-        self.password_rules_label3.setGeometry(280, 465, 600, 50)
+        self.password_rules_label3.setGeometry(575, 465, 600, 50)
         self.password_rules_label3.setStyleSheet("color: black; font-size: 16px;")
         self.password_rules_label3.setText(    
             "<html> ✓ 1 Numeric value [0-9]</html>")
         self.password_rules_label4 = QLabel(self)
-        self.password_rules_label4.setGeometry(280, 485, 600, 50)
+        self.password_rules_label4.setGeometry(575, 485, 600, 50)
         self.password_rules_label4.setStyleSheet("color: black; font-size: 16px;")
         self.password_rules_label4.setText(    
             "<html> ✓ 1 Special characters[#,$, etc ] </html>")
@@ -1889,7 +2727,7 @@ class continueWindow(QMainWindow):
         if self.password_input.text().strip() == "":
             self.notification_label.setText("Please Enter Password.")
             self.notification_label.show()
-            self.notification_label.setGeometry(280,600,350,50)
+            self.notification_label.setGeometry(575,600,350,50)
             return
 
             # If all required fields are filled, hide the notification and proceed
@@ -1979,7 +2817,7 @@ class continueWindow(QMainWindow):
         if self.password_input.text().strip() == "":
             self.notification_label.setText("Please Enter Password.")
             self.notification_label.show()
-            self.notification_label.setGeometry(280,600,350,50)
+            self.notification_label.setGeometry(575,600,350,50)
             return
 
             # If all required fields are filled, hide the notification and proceed
@@ -2094,7 +2932,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Savings and Loans App")
-        self.setGeometry(100,100,900,900)
+        self.setGeometry(100,100,1500,900)
 
 
 
@@ -2107,7 +2945,7 @@ class MainWindow(QMainWindow):
 
         # Create a QLabel to hold the image
         self.image_label = QLabel(self.central_widget)
-        self.image_label.setGeometry(0, 0, 900, 900)
+        self.image_label.setGeometry(0, 0, 1500, 900)
 
 
 
