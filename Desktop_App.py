@@ -2,6 +2,7 @@ import sys
 import uuid
 import hashlib
 import re
+import random
 import datetime
 import mysql.connector
 from datetime import datetime
@@ -9,7 +10,7 @@ from PyQt5.QtCore import pyqtSlot
 from PyQt5 import QtCore
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QIcon
-from PyQt5.QtGui import QPixmap,QPalette,QBrush
+from PyQt5.QtGui import QPixmap,QPalette,QBrush,QPen,QPainter
 from PyQt5.QtCore import Qt, QPropertyAnimation, QRect, QTimer, QSize,QDate ,QCalendar ,QDateTime# Qt core manages the alignment, and the Qpropertyanimation, with the Qreact handles the animation
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QVBoxLayout, QPushButton, QWidget, QLineEdit, QStyle, QAction, QToolBar,QToolButton, QCheckBox, QMenu, QDateEdit, QMessageBox,QCalendarWidget,QStackedWidget,QFrame,QHBoxLayout
 
@@ -266,11 +267,11 @@ class LoginWindow(QMainWindow):
           
 
                 # Assuming the login is successful and you have retrieved user details
-                Firstname, Lastname = self.get_user_details(email)
-                self.log_login(Firstname, Lastname, email)
+                Firstname, Lastname, Phonenumber, PasswordHash= self.get_user_details(email)
+                self.log_login(Firstname, Lastname, Phonenumber, PasswordHash, email)
                 self.current_user_email = email #Sets the session variable
                 cursor.close()
-                self.Main1_window = Main1Window(db=self.db, Firstname=Firstname,current_user_email=self.current_user_email)
+                self.Main1_window = Main1Window(db=self.db, Firstname=Firstname, Phonenumber=Phonenumber,PasswordHash=PasswordHash, current_user_email=self.current_user_email)
                 self.Main1_window.show()
                 
 
@@ -296,13 +297,13 @@ class LoginWindow(QMainWindow):
         # Modify this according to your database structure and query method
         cursor = self.db.cursor()
         # Execute the SELECT query to fetch user details based on email
-        sql = "SELECT FirstName, LastName FROM registerdb WHERE Email = %s"
+        sql = "SELECT FirstName, LastName, Phonenumber,PasswordHash FROM registerdb WHERE Email = %s"
         cursor.execute(sql, (email,))
         result = cursor.fetchone()  # Assuming there's only one user with the email
         cursor.close()
         return result if result else (None, None)
 
-    def log_login(self, Firstname, Lastname, email):
+    def log_login(self, Firstname, Lastname,Phonenumber ,PasswordHash, email):
         try:
            cursor = self.db.cursor()
            login_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -330,13 +331,15 @@ class LoginWindow(QMainWindow):
 
 
 class Main1Window(QMainWindow):
-    def __init__(self, db, current_user_email,Firstname):
+    def __init__(self, db, current_user_email,Firstname, Phonenumber, PasswordHash):
         super().__init__()
         self.setWindowTitle(" Main  Window")
         self.setGeometry(100, 100, 1500, 900)
         self.current_user_email = current_user_email 
         self.db = db
         self.first_name = Firstname
+        self.phone_number = Phonenumber
+        self.pass_hash = PasswordHash
               # Create central widget and layout
         
         self.central_widget = QWidget()
@@ -362,6 +365,8 @@ class Main1Window(QMainWindow):
         self.current_user_email = current_user_email 
         self.db = db
         self.first_name = Firstname
+        self.phone_number = Phonenumber
+        self.pass_hash = PasswordHash
 
         # Create a QLabel to display the image
         image_label = QLabel(self.stacked_widget)
@@ -403,8 +408,8 @@ class Main1Window(QMainWindow):
         self.loan_request_page() #17
         self.savings_account_page() #18
         self.notification_page() #19
-        self.email_page() # 20
-        self.mobile_number_page() #21
+        self.email_page(db, current_user_email) # 20
+        self.mobile_number_page(db, Phonenumber) #21
       
 
 
@@ -601,9 +606,14 @@ class Main1Window(QMainWindow):
         self.first_name = Firstname
 
         home_widget = QWidget()
+        self.icon_label = QLabel(self.central_widget)
+        self.setCircularIcon(self.icon_label, "user.png", size = 130, position= (50,10))  # Set your icon path
+        self.layout.addWidget(self.icon_label)
+        self.icon_label.setParent(home_widget)
+
         
         home_label = QLabel(f"Welcome, {Firstname} ",home_widget)
-        home_label.setGeometry(350,50,600,80)
+        home_label.setGeometry(200,48,500,80)
         home_label.setStyleSheet(
             "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
         home_label.setAlignment(Qt.AlignCenter)
@@ -684,10 +694,51 @@ class Main1Window(QMainWindow):
         
         self.stacked_widget.addWidget(home_widget)
 
+    def setCircularIcon(self, label, icon_path, size=80, position=(10, 10)):
+        pixmap = QPixmap(icon_path).scaled(QSize(size, size), Qt.KeepAspectRatio)
+        rounded_pixmap = QPixmap(pixmap.size())
+        rounded_pixmap.fill(Qt.transparent)
+
+        # Create a circular mask
+        mask = QPainter(rounded_pixmap)
+        mask.setBrush(QBrush(Qt.black))
+        mask.setPen(QPen(Qt.transparent))
+        mask.drawEllipse(0, 0, size, size)
+        mask.setCompositionMode(QPainter.CompositionMode_SourceIn)
+        mask.drawPixmap(0, 0, pixmap)
+        mask.end()
+
+        label.setPixmap(rounded_pixmap)
+        label.setFixedSize(size, size)
+        label.move(position[0], position[1])  # Set the position
+        label.setScaledContents(True) 
+
     def open_main_window(self):
+
+        try:
+            if self.db is None:
+                QMessageBox.critical(self, "Database Error", "Database connection not established.")
+                return
+
+            cursor = self.db.cursor()
+            logout_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+            # Update the login_logs table with logout time
+            sql = "UPDATE login_logs SET logout_time = %s WHERE Email = %s AND logout_time IS NULL"
+            cursor.execute(sql, (logout_time, self.current_user_email))
+            self.db.commit()
+            cursor.close()
+
+            QMessageBox.information(self, "Logout", "You have been logged out successfully.")
+
+            # Close the Main1Window after logout
+            self.close()
+        
+        except mysql.connector.Error as e:
+            QMessageBox.critical(self, "Database Error", f"Error updating logout time: {e}")
+
         self.main_window = MainWindow()
         self.main_window.show()
-        self.current_user_email = None
         self.close()   
 
     def account_page(self):
@@ -1528,10 +1579,14 @@ class Main1Window(QMainWindow):
         self.stacked_widget.addWidget(edit_profile_widget)
 
 
-    def email_page(self) :   
+    def email_page(self,db , current_user_email) :   
+
+        self.current_user_email = current_user_email 
+        self.db = db
+
         email_widget = QWidget()
        
-        emai_label = QLabel("<html><p>Edit Profile<p></>", email_widget)
+        emai_label = QLabel("<html><p>Change Email Address<p></>", email_widget)
         emai_label.setGeometry(350,50,600,80)
         emai_label.setStyleSheet("background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
         emai_label.setAlignment(Qt.AlignCenter)
@@ -1590,6 +1645,14 @@ class Main1Window(QMainWindow):
         self.confirm_email_input.editingFinished.connect(self.reset_confirm_email_input_style)
         self.confirm_email_input.setParent(email_widget)
 
+              
+        # Create QLabel for notification messages
+        self.notification_label = QLabel("", self)
+        self.notification_label.setGeometry(50, 440, 600, 50)
+        self.notification_label.setStyleSheet("color: red; font-size: 25px;")
+        self.notification_label.setParent(email_widget)
+
+
 
         
         self.save_and_submit_button = QPushButton("Save and Submit", self)
@@ -1603,32 +1666,286 @@ class Main1Window(QMainWindow):
                       border-radius: 35px;
                       }
                        QPushButton:hover{
-                          background-color:brown
+                          background-color:#333333
                       }
                   """)
         self.save_and_submit_button.clicked.connect(self.save_and_submit)
-    
+           
         self.save_and_submit_button.setParent(email_widget)
-      #  self.save_and_submit_button.clicked.connect(self.save_user_details)
+
+   
+# Inside your initialization method or where you create the widgets
+        self.regenerate_otp_button = QPushButton(self)
+        self.regenerate_otp_button.setIcon(QIcon("refresh-page-option.png"))  # Set the icon for the button
+        self.regenerate_otp_button.setToolTip("Regenerate OTP")  # Optional tooltip for the button
+        # Adjust the position and size of the button as needed
+        self.regenerate_otp_button.setGeometry(760, 335, 40, 40)
+        self.regenerate_otp_button.setStyleSheet("""
+                     QPushButton {
+                     background-color: blue;
+                      font-size: 18pt; 
+                      border-radius: 35px;
+                      }
+                       QPushButton:hover{
+                          background-color:#333333
+                      }
+                  """)
+        self.regenerate_otp_button.hide()
+        self.regenerate_otp_button.clicked.connect(self.generate_otp)  # Connect the clicked signal
+        self.regenerate_otp_button.setParent(email_widget)
+        
+     
+
+        self.otp_generated = False
+        self.otp = ""
+
+        #Create a QLabel for the information display 
+        self.info_label_widget = QWidget()
+        self.info_label = QLabel("<html><p>Enter the OTP....You have 3 minutes<p></html> ", self.info_label_widget)
+        self.info_label.setAlignment(Qt.AlignCenter)
+        self.info_label.setGeometry(400,200,400,40)
+        self.info_label.setStyleSheet("background-color: black; color: white; padding: 10px; border-radius: 100px; font-size: 10pt;")
+        self.info_label.hide() # Hide the info label initially
+        self.info_label.setParent(email_widget)
+
+        #create a container widget for the otp input
+        self.container = QWidget()
+        self.container.setGeometry(400,235,400,100)
+        self.container.setStyleSheet("background-color: blue; border-radius: 5px; padding: 5px;")
+        self.container.hide()
+        self.container.setParent(email_widget)
+
+        # Create a QVBoxLayout for the container
+        self.container_layout = QVBoxLayout(self.container)
+        self.container_layout.setContentsMargins(0, 0, 0, 0)  # No margins
+       # self.container_layout.setParent(email_widget)
+
+
+       
+
+        #Create a QHBoxlayout for the OTP boxes 
+        self.layout = QHBoxLayout()
+        self.layout.setContentsMargins(10,10,10,10) #set Margins
+      #  self.layout.setParent(email_widget)
+
+        #Create Six QLineEDIT Boxes for the otp
+        self.otp_boxes = []
+        for _ in range(6):
+            otp_box = QLineEdit(self.container)
+            otp_box.setFixedSize(50, 50)  # Set fixed size for each box
+            otp_box.setMaxLength(1)  # Limit input to one character
+            otp_box.setAlignment(Qt.AlignCenter)  # Center align text
+            otp_box.setStyleSheet(
+                "background-color: white; border: 1px solid black; border-radius: 10px; font-size: 18px;")
+            self.layout.addWidget(otp_box)
+            self.otp_boxes.append(otp_box)
+             # Connect textChanged signal to handle_otp_input slot
+            otp_box.textChanged.connect(self.handle_otp_input)
+
+
+        self.container_layout.addLayout(self.layout)
+
+
+           # Create a QLabel for time remaining display (initially hidden)
+        self.timer_label_widget = QWidget()
+        self.timer_label = QLabel("<html><p>Time remaining....180 seconds<p></html> ", self.timer_label_widget)
+        self.timer_label.setAlignment(Qt.AlignCenter)
+        self.timer_label.setGeometry(400,335,360,40)
+        self.timer_label.setStyleSheet("background-color: black; color: white; padding: 10px; border-radius: 100px; font-size: 10pt;")
+        self.timer_label.hide()
+        self.timer_label.setParent(email_widget)
+
+
+          #  self.save_and_submit_button.clicked.connect(self.save_user_details)
         self.stacked_widget.addWidget(email_widget)
 
+
+    def handle_otp_input(self, text):
+        current_box = self.sender()  # Get the sender QLineEdit
+        index = self.otp_boxes.index(current_box)
+        if len(text) == 1 and index < len(self.otp_boxes) - 1:
+            self.otp_boxes[index + 1].setFocus()  # Move focus to the next box
+        elif len(text) == 1 and index == len(self.otp_boxes) - 1:
+            self.check_otp()
+               
+
+    def update_timer(self):
+        self.time_left -= 1
+        self.timer_label.setText(f"Time remaining: {self.time_left} seconds")
+        if self.time_left == 0:
+            self.timer.stop()
+            self.clear_otp_input()
+            self.otp_generated
+            self.otp_generated = False
+            QMessageBox.warning(self, "OTP Expired", "Your OTP has expired. Please request a new OTP.")
+         
+                
+
+
+
     
+
+
     def save_and_submit(self):
+        
+        email = self.email_input.text()
+        new_email = self.new_email_input.text()
+        confirm_email = self.confirm_email_input.text()
+        entered_otp = self.otp # Get the entered OTP
+ 
+        if email != self.current_user_email:
+            self.notification_label.setText("Current email does not match.")
+            self.notification_label.show()
+            return
+        
 
-          if self.new_email_input == self.confirm_email_input:
-            # Display a message box indicating password mismatch
-             QMessageBox.information(self, "Email match", "Successfully saved ")
-                         
-          else :
-             
-              QMessageBox.warning(self, "Email Mismatch", "New email and confirm email do not match.")
-                             
+        if email == "":
+            self.notification_label.setText("Please Enter Current Email.")
+            self.notification_label.show()
+            
+            return
+
+        if new_email == "":
+            self.notification_label.setText("Please Enter New Email.")
+            self.notification_label.show()
+           
+            return  
 
 
+        if confirm_email == "":
+            self.notification_label.setText("Please Confirn Email.")
+            self.notification_label.show()
+            
+            return  
+        
+        if new_email != confirm_email:
+           self.notification_label.setText("New Email and Confirm Email do not match.")
+           self.notification_label.show()
+           return
 
-    def mobile_number_page(self):
-        number_widget = QWidget()
+        if entered_otp =="":
+            
+            self.otp_generated = False
+            self.generate_otp()
+            self.info_label.show()
+            self.container.show()
+            self.timer_label.show()
+            self.regenerate_otp_button.show()
+            self.notification_label.setText("")
+            self.email_input.hide()
+            self.new_email_input.hide()
+            self.confirm_email_input.hide()
+            self.start_timer()
+           
+          
+
+        self.notification_label.hide()
+        
+     
+    def start_timer(self):
+
+         # Check if timer is already running, stop it first
+        if hasattr(self, 'timer') and self.timer.isActive():
+            self.timer.stop()
+           # Initialize timer
+        self.time_left = 60 # 3 minutes (180 seconds)
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_timer)
+        self.timer.start(1000)  # Update timer every second
+
+    def update_database(self):
+
+        try:
+            if self.db is None:
+                QMessageBox.critical(self, "Database Error", "Database connection not established.")
+                return
+
+            cursor = self.db.cursor()
+            new_email = self.new_email_input.text()
+            email = self.email_input.text()
+
+        # Update the email in the database
+            sql = "UPDATE registerdb SET Email = %s WHERE Email = %s"
+            cursor.execute(sql, (new_email, email))
+                    
+            self.db.commit()
+            cursor.close()
+
+
+            QMessageBox.information(self, "Email Changed", "You have successfully changed your email.")
+
+        # Close the window or perform other actions as needed
+        # Go back to the profile page
+         #   profile_page_index = 6  # Set the index of the profile page in your stacked widget
+            self.main_window = MainWindow()
+            self.main_window.show()
+            self.close() 
+        
+        except mysql.connector.Error as e:
+            QMessageBox.critical(self, "Database Error", f"Error updating logout time: {e}")
+    
+        
+        
+        
        
+    def generate_otp(self):
+        email = self.current_user_email
+        self.otp = str(random.randint(100000, 999999))
+        print(f"Sending OTP to {email}")
+        print(f"""Your Verification code: {self.otp}
+For security reasons, do not share
+this code with anyone. Enter this code 
+to successfully change your Email Address""")  # Print the generated OTP
+        self.start_timer1()
+
+      
+
+
+    def clear_otp_input(self):
+        for otp_box in self.otp_boxes:
+            otp_box.clear()  
+
+    def check_otp(self):
+        entered_otp = "".join(box.text() for box in self.otp_boxes)
+
+        if self.time_left <= 0:
+           QMessageBox.warning(self, "OTP Expired", "Your OTP has expired. Please request a new OTP.")
+           self.clear_otp_input()
+           self.otp_generated = False
+           return
+           
+        if entered_otp == self.otp:
+            QMessageBox.information(self, "Success", "OTP Matched Successfully")
+            self.clear_otp_input()
+            self.generate_otp = False
+            self.info_label.hide()
+            self.container.hide()
+            self.timer_label.hide()
+            self.regenerate_otp_button.hide()
+            self.timer.stop() 
+            self.update_database()
+          
+
+        else:
+            QMessageBox.warning(self, "Error", "Invalid OTP, Please try again")
+            self.clear_otp_input()
+            self.otp_generated = False    
+
+
+
+ 
+      
+            
+       
+
+          
+
+
+    def mobile_number_page(self, db, Phonenumber):
+        self.phone_number = Phonenumber 
+        self.db = db
+
+        number_widget = QWidget()
         number_label = QLabel("<html><p>Edit Profile<p></>", number_widget)
         number_label.setGeometry(350,50,600,80)
         number_label.setStyleSheet("background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
@@ -1657,7 +1974,7 @@ class Main1Window(QMainWindow):
         self.new_number_input = QLineEdit(self)
         self.new_number_input.setGeometry(50, 280, 350, 50)  # Adjust the position and size of the input field
         # Set placeholder text for the email input field
-        self.new_number_input.setPlaceholderText(" Enter Current Phone Number ")
+        self.new_number_input.setPlaceholderText(" Enter New Phone Number ")
         # Apply styling to the email input field
         self.new_number_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
         # Enable the clear button to clear the input
@@ -1675,7 +1992,7 @@ class Main1Window(QMainWindow):
         self.confirm_number_input = QLineEdit(self)
         self.confirm_number_input.setGeometry(50, 360, 350, 50)  # Adjust the position and size of the input field
         # Set placeholder text for the email input field
-        self.confirm_number_input.setPlaceholderText(" Enter Current Phone Number ")
+        self.confirm_number_input.setPlaceholderText(" Enter Confirm Phone Number ")
         # Apply styling to the email input field
         self.confirm_number_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
         # Enable the clear button to clear the input
@@ -1692,12 +2009,19 @@ class Main1Window(QMainWindow):
         #icon = QIcon("message.png")  # Replace "icon.png" with the path to your icon file
         #self.number_input.addAction(icon, QLineEdit.LeadingPosition)
 
+         # Create QLabel for notification messages
+        self.notification_label1 = QLabel("", self)
+        self.notification_label1.setGeometry(50, 440, 600, 50)
+        self.notification_label1.setStyleSheet("color: red; font-size: 25px;")
+        self.notification_label1.setParent(number_widget)
 
-        self.save_and_submit_button = QPushButton("Save and Submit", self)
+
+
+        self.save_and_submit_button1 = QPushButton("Save and Submit", self)
         button_width = 300  # Adjust the width of the button as needed
         button_x = (self.width() - button_width) // 3  # Center the button horizontally
-        self.save_and_submit_button.setGeometry(button_x, 700, button_width, 70)
-        self.save_and_submit_button.setStyleSheet("""
+        self.save_and_submit_button1.setGeometry(button_x, 700, button_width, 70)
+        self.save_and_submit_button1.setStyleSheet("""
                      QPushButton {
                      background-color: blue;
                       font-size: 18pt; 
@@ -1707,13 +2031,283 @@ class Main1Window(QMainWindow):
                           background-color:brown
                       }
                   """)
-        self.save_and_submit_button.setParent(number_widget)
-      #  self.save_and_submit_button.clicked.connect(self.save_user_details)
+        
+        self.save_and_submit_button1.clicked.connect(self.save_and_submit1)
+        self.save_and_submit_button1.setParent(number_widget)
+
+
+
+        
+# Inside your initialization method or where you create the widgets
+        self.regenerate_otp_button1 = QPushButton(self)
+        self.regenerate_otp_button1.setIcon(QIcon("refresh-page-option.png"))  # Set the icon for the button
+        self.regenerate_otp_button1.setToolTip("Regenerate OTP")  # Optional tooltip for the button
+        # Adjust the position and size of the button as needed
+        self.regenerate_otp_button1.setGeometry(760, 335, 40, 40)
+        self.regenerate_otp_button1.setStyleSheet("""
+                     QPushButton {
+                     background-color: blue;
+                      font-size: 18pt; 
+                      border-radius: 35px;
+                      }
+                       QPushButton:hover{
+                          background-color:#333333
+                      }
+                  """)
+        self.regenerate_otp_button1.hide()
+        self.regenerate_otp_button1.clicked.connect(self.generate_otp1)  # Connect the clicked signal
+        self.regenerate_otp_button1.setParent(number_widget)
+        
+     
+
+        self.otp_generated1 = False
+        self.otp1 = ""
+
+        #Create a QLabel for the information display 
+        self.info_label1_widget = QWidget()
+        self.info_label1 = QLabel("<html><p>Enter the OTP....You have 3 minutes<p></html> ", self.info_label1_widget)
+        self.info_label1.setAlignment(Qt.AlignCenter)
+        self.info_label1.setGeometry(400,200,400,40)
+        self.info_label1.setStyleSheet("background-color: black; color: white; padding: 10px; border-radius: 100px; font-size: 10pt;")
+        self.info_label1.hide() # Hide the info label initially
+        self.info_label1.setParent(number_widget)
+
+        #create a container widget for the otp input
+        self.container1 = QWidget()
+        self.container1.setGeometry(400,235,400,100)
+        self.container1.setStyleSheet("background-color: blue; border-radius: 5px; padding: 5px;")
+        self.container1.hide()
+        self.container1.setParent(number_widget)
+
+        # Create a QVBoxLayout for the container
+        self.container_layout1 = QVBoxLayout(self.container1)
+        self.container_layout1.setContentsMargins(0, 0, 0, 0)  # No margins
+       # self.container_layout.setParent(email_widget)
+
+
+       
+
+        #Create a QHBoxlayout for the OTP boxes 
+        self.layout = QHBoxLayout()
+        self.layout.setContentsMargins(10,10,10,10) #set Margins
+      #  self.layout.setParent(email_widget)
+
+        #Create Six QLineEDIT Boxes for the otp
+        self.otp1_boxes = []
+        for _ in range(6):
+            otp1_box = QLineEdit(self.container1)
+            otp1_box.setFixedSize(50, 50)  # Set fixed size for each box
+            otp1_box.setMaxLength(1)  # Limit input to one character
+            otp1_box.setAlignment(Qt.AlignCenter)  # Center align text
+            otp1_box.setStyleSheet(
+                "background-color: white; border: 1px solid black; border-radius: 10px; font-size: 18px;")
+            self.layout.addWidget(otp1_box)
+            self.otp1_boxes.append(otp1_box)
+             # Connect textChanged signal to handle_otp_input slot
+            otp1_box.textChanged.connect(self.handle_otp_input1)
+
+
+        self.container_layout1.addLayout(self.layout)
+
+
+           # Create a QLabel for time remaining display (initially hidden)
+        self.timer_label1_widget = QWidget()
+        self.timer_label1 = QLabel("<html><p>Time remaining....180 seconds<p></html> ", self.timer_label1_widget)
+        self.timer_label1.setAlignment(Qt.AlignCenter)
+        self.timer_label1.setGeometry(400,335,360,40)
+        self.timer_label1.setStyleSheet("background-color: black; color: white; padding: 10px; border-radius: 100px; font-size: 10pt;")
+        self.timer_label1.hide()
+        self.timer_label1.setParent(number_widget)
+
+
+          #  self.save_and_submit_button.clicked.connect(self.save_user_details)
+        self.stacked_widget.addWidget(number_widget)
+
+        
+        self.stacked_widget.addWidget(number_widget)
+
+
+    def handle_otp_input1(self, text):
+        current_box = self.sender()  # Get the sender QLineEdit
+        index = self.otp_boxes.index(current_box)
+        if len(text) == 1 and index < len(self.otp_boxes) - 1:
+            self.otp_boxes[index + 1].setFocus()  # Move focus to the next box
+        elif len(text) == 1 and index == len(self.otp_boxes) - 1:
+            self.check_otp1()
+               
+
+    def update_timer1(self):
+        self.time_left -= 1
+        self.timer_label.setText(f"Time remaining: {self.time_left} seconds")
+        if self.time_left == 0:
+            self.timer.stop()
+            self.clear_otp_input1()
+            self.otp_generated1
+            self.otp_generated1 = False
+            QMessageBox.warning(self, "OTP Expired", "Your OTP has expired. Please request a new OTP.")
+         
+                
+
+
+
+    
+
+
+    def save_and_submit1(self):
+
+        number = self.number_input.text()
+        new_number = self.new_number_input.text()
+        confirm_numnber = self.confirm_number_input.text()
+        entered_otp = self.otp # Get the entered OTP
+ 
+        if number != self.phone_number:
+            self.notification_label1.setText("Current Number does not match.")
+            self.notification_label1.show()
+            return
+        
+
+        if number == "":
+            self.notification_label1.setText("Please Enter Current Number.")
+            self.notification_label1.show()
+            
+            return
+
+        if new_number == "":
+            self.notification_label1.setText("Please Enter New Number.")
+            self.notification_label1.show()
+           
+            return  
+
+
+        if confirm_numnber == "":
+            self.notification_label1.setText("Please Confirn Number.")
+            self.notification_label1.show()
+            
+            return  
+        
+        if new_number != confirm_numnber:
+           self.notification_label1.setText("New Number and Confirm Number do not match.")
+           self.notification_label1.show()
+           return
+
+        if entered_otp =="":
+            self.generate_otp1(number)
+            self.send_otp1(number)
+            print(f"""Your Verification code: {self.otp}
+For security reasons, do not share
+this code with anyone. Enter this code 
+to successfully change your Email Address""")  # Print the generated OTP
+            self.otp_generated1 = True
+            self.info_label1.show()
+            self.container.show()
+            self.timer_label1.show()
+            self.regenerate_otp_button1.show()
+            self.notification_label1.setText("")
+            self.number_input.hide()
+            self.new_number_input.hide()
+            self.confirm_number_input.hide()
+            self.start_timer1()
+           
+          
+
+        self.notification_label1.hide()
+        
+     
+    def start_timer1(self):
+
+         # Check if timer is already running, stop it first
+        if hasattr(self, 'timer') and self.timer.isActive():
+            self.timer.stop()
+           # Initialize timer
+        self.time_left = 60 # 3 minutes (180 seconds)
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_timer1)
+        self.timer.start(1000)  # Update timer every second
+
+    def update_database1(self):
+
+        try:
+            if self.db is None:
+                QMessageBox.critical(self, "Database Error", "Database connection not established.")
+                return
+
+            cursor = self.db.cursor()
+            new_number = self.new_number_input.text()
+            number = self.number_input.text()
+
+        # Update the email in the database
+            sql = "UPDATE registerdb SET Email = %s WHERE Email = %s"
+            cursor.execute(sql, (new_number, number))
+                    
+            self.db.commit()
+            cursor.close()
+
+
+            QMessageBox.information(self, "Number Changed", "You have successfully changed your email.")
+
+        # Close the window or perform other actions as needed
+        # Go back to the profile page
+         #   profile_page_index = 6  # Set the index of the profile page in your stacked widget
+            self.main_window = MainWindow()
+            self.main_window.show()
+            self.close() 
+        
+        except mysql.connector.Error as e:
+            QMessageBox.critical(self, "Database Error", f"Error updating logout time: {e}")
+    
+        
+        
+        
+       
+    def generate_otp1(self, number):
+        self.otp = str(random.randint(100000, 999999))
+        print(f"Sending OTP to {number}")
+        print(f"""Your Verification code: {self.otp1}
+For security reasons, do not share
+this code with anyone. Enter this code 
+to successfully change your Email Address""")  # Print the generated OTP
+        self.start_timer1()
+
+    def send_otp1(self,number):
+        print(f"Sending OTP to {number}")    
+
+
+    def clear_otp_input1(self):
+        for otp_box in self.otp_boxes:
+            otp_box.clear()  
+
+    def check_otp1(self):
+        entered_otp = "".join(box.text() for box in self.otp_boxes)
+
+        if self.time_left <= 0:
+           QMessageBox.warning(self, "OTP Expired", "Your OTP has expired. Please request a new OTP.")
+           self.clear_otp_input1()
+           self.otp_generated1 = False
+           return
+           
+        if entered_otp == self.otp1:
+            QMessageBox.information(self, "Success", "OTP Matched Successfully")
+            self.clear_otp_input1()
+            self.generate_otp1 = False
+            self.info_label.hide()
+            self.container.hide()
+            self.timer_label.hide()
+            self.regenerate_otp_button.hide()
+            self.timer.stop() 
+            self.update_database1()
+          
+           
+
+
+        else:
+            QMessageBox(self, "Error", "Invalid OTP, Please try again")
+            self.clear_otp_input1()
+            self.otp_generated1 = False    
+
 
     
        
 
-        self.stacked_widget.addWidget(number_widget)
 
     def validate_number(self,text):
         number_pattern = r'^[0-9]{10}$'  # Assuming a 10-digit phone number
