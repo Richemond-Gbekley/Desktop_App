@@ -267,11 +267,13 @@ class LoginWindow(QMainWindow):
           
 
                 # Assuming the login is successful and you have retrieved user details
-                Firstname, Lastname, Phonenumber, PasswordHash= self.get_user_details(email)
-                self.log_login(Firstname, Lastname, Phonenumber, PasswordHash, email)
+                Firstname, Lastname, Phonenumber = self.get_user_details(email)
+                self.log_login(Firstname, Lastname, email)
                 self.current_user_email = email #Sets the session variable
+                self.current_password = hash_password
                 cursor.close()
-                self.Main1_window = Main1Window(db=self.db, Firstname=Firstname, Phonenumber=Phonenumber,PasswordHash=PasswordHash, current_user_email=self.current_user_email)
+                print(hash_password)
+                self.Main1_window = Main1Window(db=self.db, Firstname=Firstname, Phonenumber=Phonenumber,current_password= self.current_password, current_user_email=self.current_user_email)
                 self.Main1_window.show()
                 
 
@@ -297,21 +299,22 @@ class LoginWindow(QMainWindow):
         # Modify this according to your database structure and query method
         cursor = self.db.cursor()
         # Execute the SELECT query to fetch user details based on email
-        sql = "SELECT FirstName, LastName, Phonenumber,PasswordHash FROM registerdb WHERE Email = %s"
+        sql = "SELECT FirstName, LastName, Phonenumber FROM registerdb WHERE Email = %s"
         cursor.execute(sql, (email,))
+       
         result = cursor.fetchone()  # Assuming there's only one user with the email
         cursor.close()
         return result if result else (None, None)
 
-    def log_login(self, Firstname, Lastname,Phonenumber ,PasswordHash, email):
+    def log_login(self, Firstname, Lastname, email):
         try:
            cursor = self.db.cursor()
            login_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-           sql = "INSERT INTO login_logs (Firstname, Lastname, Email, login_time) VALUES (%s, %s, %s, %s)"
-           values = (Firstname, Lastname, email, login_time)
+           sql = "INSERT INTO login_logs (Firstname, Lastname, Email, login_time) VALUES (%s,%s, %s, %s)"
+           values = (Firstname, Lastname, email, login_time,)
            cursor.execute(sql, values)
            self.db.commit()
-           cursor.close()
+           cursor.close() 
         except mysql.connector.Error as e:
             QMessageBox.critical(self, "Database Error", f"Error logging login: {e}")
 
@@ -331,7 +334,7 @@ class LoginWindow(QMainWindow):
 
 
 class Main1Window(QMainWindow):
-    def __init__(self, db, current_user_email,Firstname, Phonenumber, PasswordHash):
+    def __init__(self, db, current_user_email,Firstname, Phonenumber, current_password):
         super().__init__()
         self.setWindowTitle(" Main  Window")
         self.setGeometry(100, 100, 1500, 900)
@@ -339,7 +342,7 @@ class Main1Window(QMainWindow):
         self.db = db
         self.first_name = Firstname
         self.phone_number = Phonenumber
-        self.pass_hash = PasswordHash
+        self.current_password = current_password
               # Create central widget and layout
         
         self.central_widget = QWidget()
@@ -366,7 +369,7 @@ class Main1Window(QMainWindow):
         self.db = db
         self.first_name = Firstname
         self.phone_number = Phonenumber
-        self.pass_hash = PasswordHash
+        self.current_password = current_password
 
         # Create a QLabel to display the image
         image_label = QLabel(self.stacked_widget)
@@ -396,7 +399,7 @@ class Main1Window(QMainWindow):
         self.loan_page() #5
         self.profile_page() #6
         self.edit_profile_page() #7
-        self.change_password_page() #8
+        self.change_password_page(db, current_password, current_user_email) #8
         self.check_balance_page() #9
         self.mini_statement_page() # 10
         self.invest_page() #11
@@ -736,6 +739,7 @@ class Main1Window(QMainWindow):
         
         except mysql.connector.Error as e:
             QMessageBox.critical(self, "Database Error", f"Error updating logout time: {e}")
+            print(e)
 
         self.main_window = MainWindow()
         self.main_window.show()
@@ -1853,38 +1857,52 @@ class Main1Window(QMainWindow):
         self.timer.timeout.connect(self.update_timer)
         self.timer.start(1000)  # Update timer every second
 
-    def update_database(self):
+    def update_database(self,):
 
         try:
             if self.db is None:
                 QMessageBox.critical(self, "Database Error", "Database connection not established.")
                 return
-
             cursor = self.db.cursor()
             new_email = self.new_email_input.text()
             email = self.email_input.text()
+            
+            
+            # Check if the user already exists using a parameterized query
+            query = "SELECT * FROM registerdb WHERE Email = %s"
+            cursor.execute(query,(new_email,))
+            result = cursor.fetchone()
 
+            if result:
+                QMessageBox.information(self, " Failed", "The Email is already registered.")
+                
+            else:    
         # Update the email in the database
-            sql = "UPDATE registerdb SET Email = %s WHERE Email = %s"
-            cursor.execute(sql, (new_email, email))
+                sql = "UPDATE registerdb SET Email = %s WHERE Email = %s"
+                cursor.execute(sql, (new_email, email))
+
+                sql_update_edit = "INSERT INTO edit_db (email, action1) VALUES (%s,%s)"
+                action = f"Changed Email from {email} to {new_email}"
+                cursor.execute(sql_update_edit, (new_email, action))
+                self.db.commit()
                     
-            self.db.commit()
-            cursor.close()
+                self.db.commit()
+                
 
 
-            QMessageBox.information(self, "Email Changed", "You have successfully changed your email.")
-
-        # Close the window or perform other actions as needed
-        # Go back to the profile page
-         #   profile_page_index = 6  # Set the index of the profile page in your stacked widget
+                QMessageBox.information(self, "Email Changed", "You have successfully changed your email.")
+        
+       
             self.main_window = MainWindow()
             self.main_window.show()
             self.close() 
         
         except mysql.connector.Error as e:
             QMessageBox.critical(self, "Database Error", f"Error updating logout time: {e}")
-    
-        
+        finally:
+            cursor.close()
+
+         
         
         
        
@@ -2124,21 +2142,21 @@ to successfully change your Email Address""")  # Print the generated OTP
         self.stacked_widget.addWidget(number_widget)
 
         
-        self.stacked_widget.addWidget(number_widget)
+      
 
 
     def handle_otp_input1(self, text):
-        current_box = self.sender()  # Get the sender QLineEdit
-        index = self.otp_boxes.index(current_box)
-        if len(text) == 1 and index < len(self.otp_boxes) - 1:
-            self.otp_boxes[index + 1].setFocus()  # Move focus to the next box
-        elif len(text) == 1 and index == len(self.otp_boxes) - 1:
+        current_box1 = self.sender()  # Get the sender QLineEdit
+        index = self.otp1_boxes.index(current_box1)
+        if len(text) == 1 and index < len(self.otp1_boxes) - 1:
+            self.otp1_boxes[index + 1].setFocus()  # Move focus to the next box
+        elif len(text) == 1 and index == len(self.otp1_boxes) - 1:
             self.check_otp1()
                
 
     def update_timer1(self):
         self.time_left -= 1
-        self.timer_label.setText(f"Time remaining: {self.time_left} seconds")
+        self.timer_label1.setText(f"Time remaining: {self.time_left} seconds")
         if self.time_left == 0:
             self.timer.stop()
             self.clear_otp_input1()
@@ -2191,15 +2209,10 @@ to successfully change your Email Address""")  # Print the generated OTP
            return
 
         if entered_otp =="":
-            self.generate_otp1(number)
-            self.send_otp1(number)
-            print(f"""Your Verification code: {self.otp}
-For security reasons, do not share
-this code with anyone. Enter this code 
-to successfully change your Email Address""")  # Print the generated OTP
+            self.generate_otp1()
             self.otp_generated1 = True
             self.info_label1.show()
-            self.container.show()
+            self.container1.show()
             self.timer_label1.show()
             self.regenerate_otp_button1.show()
             self.notification_label1.setText("")
@@ -2230,20 +2243,36 @@ to successfully change your Email Address""")  # Print the generated OTP
             if self.db is None:
                 QMessageBox.critical(self, "Database Error", "Database connection not established.")
                 return
-
+            
             cursor = self.db.cursor()
             new_number = self.new_number_input.text()
             number = self.number_input.text()
+           
+            cursor.execute("SELECT * FROM registerdb WHERE Phonenumber = %s", (new_number,))
+            result = cursor.fetchone()
+
+            if result:
+                QMessageBox.information(self, " Failed", "The Mobile Number is already registered.")
+                return
+            else:    
+               
 
         # Update the email in the database
-            sql = "UPDATE registerdb SET Email = %s WHERE Email = %s"
-            cursor.execute(sql, (new_number, number))
+                sql = "UPDATE registerdb SET Phonenumber = %s WHERE Phonenumber = %s"
+                cursor.execute(sql, (new_number, number))
+                print(new_number)
                     
-            self.db.commit()
-            cursor.close()
+                self.db.commit()
+
+                # Update the edit database with the change
+                sql_update_edit = "INSERT INTO edit_db (phone_number, action2) VALUES (%s, LEFT(%s, 255))"
+                action = f"Changed Phone Number from {number} to {new_number}"
+                cursor.execute(sql_update_edit, (new_number, action))
+                self.db.commit()
+                cursor.close()
 
 
-            QMessageBox.information(self, "Number Changed", "You have successfully changed your email.")
+                QMessageBox.information(self, "Number Changed", "You have successfully changed your Number.")
 
         # Close the window or perform other actions as needed
         # Go back to the profile page
@@ -2259,8 +2288,9 @@ to successfully change your Email Address""")  # Print the generated OTP
         
         
        
-    def generate_otp1(self, number):
-        self.otp = str(random.randint(100000, 999999))
+    def generate_otp1(self):
+        number = self.phone_number
+        self.otp1 = str(random.randint(100000, 999999))
         print(f"Sending OTP to {number}")
         print(f"""Your Verification code: {self.otp1}
 For security reasons, do not share
@@ -2273,11 +2303,11 @@ to successfully change your Email Address""")  # Print the generated OTP
 
 
     def clear_otp_input1(self):
-        for otp_box in self.otp_boxes:
+        for otp_box in self.otp1_boxes:
             otp_box.clear()  
 
     def check_otp1(self):
-        entered_otp = "".join(box.text() for box in self.otp_boxes)
+        entered_otp = "".join(box.text() for box in self.otp1_boxes)
 
         if self.time_left <= 0:
            QMessageBox.warning(self, "OTP Expired", "Your OTP has expired. Please request a new OTP.")
@@ -2289,10 +2319,10 @@ to successfully change your Email Address""")  # Print the generated OTP
             QMessageBox.information(self, "Success", "OTP Matched Successfully")
             self.clear_otp_input1()
             self.generate_otp1 = False
-            self.info_label.hide()
-            self.container.hide()
-            self.timer_label.hide()
-            self.regenerate_otp_button.hide()
+            self.info_label1.hide()
+            self.container1.hide()
+            self.timer_label1.hide()
+            self.regenerate_otp_button1.hide()
             self.timer.stop() 
             self.update_database1()
           
@@ -2300,7 +2330,7 @@ to successfully change your Email Address""")  # Print the generated OTP
 
 
         else:
-            QMessageBox(self, "Error", "Invalid OTP, Please try again")
+            QMessageBox.warning(self, "Error", "Invalid OTP, Please try again")
             self.clear_otp_input1()
             self.otp_generated1 = False    
 
@@ -2470,14 +2500,19 @@ to successfully change your Email Address""")  # Print the generated OTP
          
 
 
-    def change_password_page(self):
+    def change_password_page(self, db, current_password, current_user_email):
+        self.current_user_email = current_user_email
+        self.current_password = current_password
+        self.db = db
+        
+
         change_password_widget = QWidget()
        
         change_password_label = QLabel("<html><p>Change Password<p></>", change_password_widget)
         change_password_label.setGeometry(300,50,600,80)
         change_password_label.setStyleSheet(
             "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
-        change_password_label.setAlignment(Qt.AlignCenter)
+        change_password_label.setAlignment(Qt. AlignCenter)
        # profile_layout.addWidget(welcome_label)
 
        
@@ -2500,12 +2535,12 @@ to successfully change your Email Address""")  # Print the generated OTP
 
 
         # Create checkbox to toggle password visibility
-        self.show_password_checkbox = QCheckBox("Show Password", self)
-        self.show_password_checkbox.setStyleSheet("color: black; font-size : 16px")
-        self.show_password_checkbox.setGeometry(40, 247, 200, 30)
-        self.show_password_checkbox.stateChanged.connect(self.toggle_password_visibility)
+        self.show_password_checkbox1 = QCheckBox("Show Password", self)
+        self.show_password_checkbox1.setStyleSheet("color: black; font-size : 16px")
+        self.show_password_checkbox1.setGeometry(40, 247, 200, 30)
+        self.show_password_checkbox1.stateChanged.connect(self.toggle_password_visibility)
 
-        self.show_password_checkbox.setParent(change_password_widget)
+        self.show_password_checkbox1.setParent(change_password_widget)
 
 
           # Create a line edit for New password input field
@@ -2526,14 +2561,14 @@ to successfully change your Email Address""")  # Print the generated OTP
         self.new_password_input.setParent(change_password_widget)
 
            # Create checkbox to toggle password visibility
-        self.show_password_checkbox = QCheckBox("Show Password", self)
-        self.show_password_checkbox.setStyleSheet("color: black; font-size : 16px")
-        self.show_password_checkbox.setGeometry(40, 347, 200, 30)
-        self.show_password_checkbox.stateChanged.connect(self.toggle_password_visibility1)
+        self.show_password_checkbox2 = QCheckBox("Show Password", self)
+        self.show_password_checkbox2.setStyleSheet("color: black; font-size : 16px")
+        self.show_password_checkbox2.setGeometry(40, 347, 200, 30)
+        self.show_password_checkbox2.stateChanged.connect(self.toggle_password_visibility1)
 
 
 
-        self.show_password_checkbox.setParent(change_password_widget)
+        self.show_password_checkbox2.setParent(change_password_widget)
 
 
         
@@ -2554,18 +2589,30 @@ to successfully change your Email Address""")  # Print the generated OTP
         self.confirm_password_input.setParent(change_password_widget)
 
                # Create checkbox to toggle password visibility
-        self.show_password_checkbox = QCheckBox("Show Password", self)
-        self.show_password_checkbox.setStyleSheet("color: black; font-size : 16px")
-        self.show_password_checkbox.setGeometry(40, 447, 200, 30)
-        self.show_password_checkbox.stateChanged.connect(self.toggle_password_visibility2)
-        self.show_password_checkbox.setParent(change_password_widget)
+        self.show_password_checkbox3 = QCheckBox("Show Password", self)
+        self.show_password_checkbox3.setStyleSheet("color: black; font-size : 16px")
+        self.show_password_checkbox3.setGeometry(40, 447, 200, 30)
+        self.show_password_checkbox3.stateChanged.connect(self.toggle_password_visibility2)
+        self.show_password_checkbox3.setParent(change_password_widget)
 
 
-        self.save_and_submit_button = QPushButton("Save and Submit", self)
+
+        # Create QLabel for notification messages
+        self.notification_label2 = QLabel("", self)
+        self.notification_label2.setGeometry(50, 500, 600, 50)
+        self.notification_label2.setStyleSheet("color: red; font-size: 25px;")
+        self.notification_label2.setParent(change_password_widget)
+
+
+
+        
+
+
+        self.save_and_submit_button2 = QPushButton("Save and Submit", self)
         button_width = 300  # Adjust the width of the button as needed
         button_x = (self.width() - button_width) // 3  # Center the button horizontally
-        self.save_and_submit_button.setGeometry(button_x, 700, button_width, 70)
-        self.save_and_submit_button.setStyleSheet("""
+        self.save_and_submit_button2.setGeometry(button_x, 700, button_width, 70)
+        self.save_and_submit_button2.setStyleSheet("""
                      QPushButton {
                      background-color: blue;
                       font-size: 18pt; 
@@ -2575,13 +2622,306 @@ to successfully change your Email Address""")  # Print the generated OTP
                           background-color:brown
                       }
                   """)
-        self.save_and_submit_button.setParent(change_password_widget)
-      #  self.save_and_submit_button.clicked.connect(self.save_user_details)
+        
+        self.save_and_submit_button2.clicked.connect(self.save_and_submit2)
+        self.save_and_submit_button2.setParent(change_password_widget)
+
+
+
+        
+# Inside your initialization method or where you create the widgets
+        self.regenerate_otp_button2 = QPushButton(self)
+        self.regenerate_otp_button2.setIcon(QIcon("refresh-page-option.png"))  # Set the icon for the button
+        self.regenerate_otp_button2.setToolTip("Regenerate OTP")  # Optional tooltip for the button
+        # Adjust the position and size of the button as needed
+        self.regenerate_otp_button2.setGeometry(760, 335, 40, 40)
+        self.regenerate_otp_button2.setStyleSheet("""
+                     QPushButton {
+                     background-color: blue;
+                      font-size: 18pt; 
+                      border-radius: 35px;
+                      }
+                       QPushButton:hover{
+                          background-color:#333333
+                      }
+                  """)
+        self.regenerate_otp_button2.hide()
+        self.regenerate_otp_button2.clicked.connect(self.generate_otp2)  # Connect the clicked signal
+        self.regenerate_otp_button2.setParent(change_password_widget)
+        
+     
+
+        self.otp_generated2 = False
+        self.otp2 = ""
+
+        #Create a QLabel for the information display 
+        self.info_label2_widget = QWidget()
+        self.info_label2 = QLabel("<html><p>Enter the OTP....You have 3 minutes<p></html> ", self.info_label2_widget)
+        self.info_label2.setAlignment(Qt.AlignCenter)
+        self.info_label2.setGeometry(400,200,400,40)
+        self.info_label2.setStyleSheet("background-color: black; color: white; padding: 10px; border-radius: 100px; font-size: 10pt;")
+        self.info_label2.hide() # Hide the info label initially
+        self.info_label2.setParent(change_password_widget)
+
+        #create a container widget for the otp input
+        self.container2 = QWidget()
+        self.container2.setGeometry(400,235,400,100)
+        self.container2.setStyleSheet("background-color: blue; border-radius: 5px; padding: 5px;")
+        self.container2.hide()
+        self.container2.setParent(change_password_widget)
+
+        # Create a QVBoxLayout for the container
+        self.container_layout2 = QVBoxLayout(self.container2)
+        self.container_layout2.setContentsMargins(0, 0, 0, 0)  # No margins
+       # self.container_layout.setParent(email_widget)
+
+
+       
+
+        #Create a QHBoxlayout for the OTP boxes 
+        self.layout = QHBoxLayout()
+        self.layout.setContentsMargins(10,10,10,10) #set Margins
+      #  self.layout.setParent(email_widget)
+
+        #Create Six QLineEDIT Boxes for the otp
+        self.otp2_boxes = []
+        for _ in range(6):
+            otp2_box = QLineEdit(self.container2)
+            otp2_box.setFixedSize(50, 50)  # Set fixed size for each box
+            otp2_box.setMaxLength(1)  # Limit input to one character
+            otp2_box.setAlignment(Qt.AlignCenter)  # Center align text
+            otp2_box.setStyleSheet(
+                "background-color: white; border: 1px solid black; border-radius: 10px; font-size: 18px;")
+            self.layout.addWidget(otp2_box)
+            self.otp2_boxes.append(otp2_box)
+             # Connect textChanged signal to handle_otp_input slot
+            otp2_box.textChanged.connect(self.handle_otp_input2)
+
+
+        self.container_layout2.addLayout(self.layout)
+
+
+           # Create a QLabel for time remaining display (initially hidden)
+        self.timer_label2_widget = QWidget()
+        self.timer_label2 = QLabel("<html><p>Time remaining....180 seconds<p></html> ", self.timer_label2_widget)
+        self.timer_label2.setAlignment(Qt.AlignCenter)
+        self.timer_label2.setGeometry(400,335,360,40)
+        self.timer_label2.setStyleSheet("background-color: black; color: white; padding: 10px; border-radius: 100px; font-size: 10pt;")
+        self.timer_label2.hide()
+        self.timer_label2.setParent(change_password_widget)
+
+
+          #  self.save_and_submit_button.clicked.connect(self.save_user_details)
+        self.stacked_widget.addWidget(change_password_widget)
+
+        
+      
+
+
+    def handle_otp_input2(self, text):
+        current_box2 = self.sender()  # Get the sender QLineEdit
+        index = self.otp2_boxes.index(current_box2)
+        if len(text) == 1 and index < len(self.otp2_boxes) - 1:
+            self.otp2_boxes[index + 1].setFocus()  # Move focus to the next box
+        elif len(text) == 1 and index == len(self.otp2_boxes) - 1:
+            self.check_otp2()
+               
+
+    def update_timer2(self):
+        self.time_left -= 1
+        self.timer_label2.setText(f"Time remaining: {self.time_left} seconds")
+        if self.time_left == 0:
+            self.timer.stop()
+            self.clear_otp_input2()
+            self.otp_generated2
+            self.otp_generated2 = False
+            QMessageBox.warning(self, "OTP Expired", "Your OTP has expired. Please request a new OTP.")
+         
+                
+
+
 
     
 
-        self.stacked_widget.addWidget(change_password_widget)  
 
+    def save_and_submit2(self):
+
+        email = self.current_user_email
+        password = self.password_input.text()
+        new_password = self.new_password_input.text()
+        confirm_password = self.confirm_password_input.text()
+        entered_otp = self.otp2 # Get the entered OTP
+
+        hash_password = hashlib.sha256(password.encode()).hexdigest()
+        hash_password1 = hashlib.sha256(new_password.encode()).hexdigest()
+        hash_password2 = hashlib.sha256(confirm_password.encode()).hexdigest()
+ 
+        if hash_password != self.current_password:
+            self.notification_label2.setText("Current Password does not match.")
+            self.notification_label2.show()
+            print(hash_password)
+            print(self.current_password)
+            print(password)
+            return
+        
+
+        if password== "":
+            self.notification_label2.setText("Please Enter Current Password.")
+            self.notification_label2.show()
+            
+            return
+
+        if new_password == "":
+            self.notification_label2.setText("Please Enter New Password.")
+            self.notification_label2.show()
+           
+            return  
+
+
+        if confirm_password == "":
+            self.notification_label2.setText("Please Confirn Password.")
+            self.notification_label2.show()
+            
+            return  
+        
+        if hash_password1 != hash_password2:
+           self.notification_label2.setText("New Password and Confirm Password do not match.")
+           self.notification_label2.show()
+           return
+
+        if entered_otp =="":
+            self.generate_otp2()
+            self.otp_generated2 = True
+            self.info_label2.show()
+            self.container2.show()
+            self.timer_label2.show()
+            self.regenerate_otp_button2.show()
+            self.notification_label2.setText("")
+            self.password_input.hide()
+            self.new_password_input.hide()
+            self.confirm_password_input.hide()
+            self.show_password_checkbox1.hide()
+            self.show_password_checkbox2.hide()
+            self.show_password_checkbox3.hide()
+            self.start_timer2()
+           
+          
+
+        self.notification_label2.hide()
+        
+     
+    def start_timer2(self):
+
+         # Check if timer is already running, stop it first
+        if hasattr(self, 'timer') and self.timer.isActive():
+            self.timer.stop()
+           # Initialize timer
+        self.time_left = 60 # 3 minutes (180 seconds)
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_timer2)
+        self.timer.start(1000)  # Update timer every second
+
+    def update_database2(self):
+
+        try:
+            if self.db is None:
+                QMessageBox.critical(self, "Database Error", "Database connection not established.")
+                return
+            
+            cursor = self.db.cursor()
+            new_password = self.new_password_input.text()
+            password = self.password_input.text()
+            email = self.current_user_email
+            hash_password = hashlib.sha256(new_password.encode()).hexdigest()
+
+           
+               
+
+        # Update the email in the database
+            sql = "UPDATE registerdb SET Password = %s, PasswordHash = %s WHERE Email = %s"
+            cursor.execute(sql, (new_password, hash_password, email))
+            print(new_password)
+                    
+            self.db.commit()
+            sql_update_edit = "INSERT INTO edit_db (password, action3, hashed_password) VALUES (%s, %s, %s)"
+            action = f"Changed Phone Number from {password} to {new_password}"
+            cursor.execute(sql_update_edit, (new_password, action, hash_password))
+            self.db.commit()
+            cursor.close()
+
+
+            QMessageBox.information(self, "Password Changed", "You have successfully changed your Password.")
+
+        # Close the window or perform other actions as needed
+        # Go back to the profile page
+         #   profile_page_index = 6  # Set the index of the profile page in your stacked widget
+            self.main_window = MainWindow()
+            self.main_window.show()
+            self.close() 
+        
+        except mysql.connector.Error as e:
+            QMessageBox.critical(self, "Database Error", f"Error updating logout time: {e}")
+    
+        
+        
+        
+       
+    def generate_otp2(self):
+        email = self.current_user_email
+        number = self.phone_number
+        self.otp2 = str(random.randint(100000, 999999))
+        print(f"Sending OTP to {email}")
+        print(f"""Your Verification code: {self.otp2}
+For security reasons, do not share
+this code with anyone. Enter this code 
+to successfully change your Email Address""") 
+        print(f"Sending OTP to {number}")
+        print(f"""Your Verification code: {self.otp2}
+For security reasons, do not share
+this code with anyone. Enter this code 
+to successfully change your Email Address""") # Print the generated OTP
+        self.start_timer2()
+
+    def send_otp2(self,number):
+        print(f"Sending OTP to {number}")    
+
+
+    def clear_otp_input2(self):
+        for otp_box in self.otp2_boxes:
+            otp_box.clear()  
+
+    def check_otp2(self):
+        entered_otp = "".join(box.text() for box in self.otp2_boxes)
+
+        if self.time_left <= 0:
+           QMessageBox.warning(self, "OTP Expired", "Your OTP has expired. Please request a new OTP.")
+           self.clear_otp_input2()
+           self.otp_generated2 = False
+           return
+           
+        if entered_otp == self.otp2:
+            QMessageBox.information(self, "Success", "OTP Matched Successfully")
+            self.clear_otp_input2()
+            self.generate_otp2 = False
+            self.info_label2.hide()
+            self.container2.hide()
+            self.timer_label2.hide()
+            self.regenerate_otp_button2.hide()
+            self.timer.stop() 
+            self.update_database2()
+          
+           
+
+
+        else:
+            QMessageBox.warning(self, "Error", "Invalid OTP, Please try again")
+            self.clear_otp_input2()
+            self.otp_generated2 = False    
+
+
+    
+
+       
 
 
     def toggle_password_visibility(self, state):
