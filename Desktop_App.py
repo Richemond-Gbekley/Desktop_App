@@ -4,14 +4,16 @@ import hashlib
 import re
 import random
 import datetime
+import schedule
+import time
 import mysql.connector
-from datetime import datetime
+from datetime import datetime, timedelta
 from PyQt5.QtCore import pyqtSlot
 from PyQt5 import QtCore
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QIcon
-from PyQt5.QtGui import QPixmap,QPalette,QBrush,QPen,QPainter
-from PyQt5.QtCore import Qt, QPropertyAnimation, QRect, QTimer, QSize,QDate ,QCalendar ,QDateTime# Qt core manages the alignment, and the Qpropertyanimation, with the Qreact handles the animation
+from PyQt5.QtGui import QPixmap,QPalette,QBrush,QPen,QPainter, QColor
+from PyQt5.QtCore import QRectF, QPoint, QObject,pyqtSignal, Qt, QPropertyAnimation, QRect, QTimer, QSize,QDate ,QCalendar ,QDateTime# Qt core manages the alignment, and the Qpropertyanimation, with the Qreact handles the animation
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QVBoxLayout, QPushButton, QWidget, QLineEdit, QStyle, QAction, QToolBar,QToolButton, QCheckBox, QMenu, QDateEdit, QMessageBox,QCalendarWidget,QStackedWidget,QFrame,QHBoxLayout
 
 
@@ -269,11 +271,12 @@ class LoginWindow(QMainWindow):
                 # Assuming the login is successful and you have retrieved user details
                 Firstname, Lastname, Phonenumber = self.get_user_details(email)
                 self.log_login(Firstname, Lastname, email)
+                self.my_accountdb(Firstname, Lastname, email)
                 self.current_user_email = email #Sets the session variable
                 self.current_password = hash_password
                 cursor.close()
                 print(hash_password)
-                self.Main1_window = Main1Window(db=self.db, Firstname=Firstname, Phonenumber=Phonenumber,current_password= self.current_password, current_user_email=self.current_user_email)
+                self.Main1_window = Main1Window(db=self.db, Firstname=Firstname, Lastname = Lastname,  Phonenumber=Phonenumber,current_password= self.current_password, current_user_email=self.current_user_email)
                 self.Main1_window.show()
                 
 
@@ -318,6 +321,33 @@ class LoginWindow(QMainWindow):
         except mysql.connector.Error as e:
             QMessageBox.critical(self, "Database Error", f"Error logging login: {e}")
 
+    def my_accountdb(self, Firstname, Lastname,email):
+        try:
+            cursor = self.db.cursor()
+              # Execute SELECT query to check login credentials
+            query1 = "SELECT * FROM my_accountdb WHERE Email = %s "
+                 
+            cursor.execute(query1, (email,))
+            result = cursor.fetchone()
+
+            Balance = 0.00
+            
+
+            if result:
+                return
+            
+            else:
+                sql1 = "INSERT INTO my_accountdb (Firstname, Lastname, Email, Balance) VALUES (%s,%s, %s, %s)"
+                values = (Firstname, Lastname, email, Balance)
+                cursor.execute(sql1, values)
+                self.db.commit()
+                cursor.close() 
+        except mysql.connector.Error as e:
+            QMessageBox.critical(self, "Database Error", f"Error logging login: {e}")
+
+
+                    
+
 
 
 
@@ -334,13 +364,22 @@ class LoginWindow(QMainWindow):
 
 
 class Main1Window(QMainWindow):
-    def __init__(self, db, current_user_email,Firstname, Phonenumber, current_password):
+    update_home_page = pyqtSignal(str)
+    
+  
+    def __init__(self, db, current_user_email,Firstname,Lastname, Phonenumber, current_password):
         super().__init__()
         self.setWindowTitle(" Main  Window")
         self.setGeometry(100, 100, 1500, 900)
+          # Create a signal manager instance
+        
+
+   
+
         self.current_user_email = current_user_email 
         self.db = db
         self.first_name = Firstname
+        self.last_name = Lastname
         self.phone_number = Phonenumber
         self.current_password = current_password
               # Create central widget and layout
@@ -358,7 +397,14 @@ class Main1Window(QMainWindow):
 
         # Load intial image
         self.load_image()
+
+
+          # Connect the update_home_page signal to a slot in the home page
+        self.update_home_page.connect(self.update_home_page_slot)
+
                  # Create a stacked widget to hold multiple pages
+
+
         self.stacked_widget = QStackedWidget(self.centralWidget())
        # self.central_layout = QVBoxLayout(self.centralWidget())
        # self.central_layout.addWidget(self.stacked_widget)
@@ -368,8 +414,10 @@ class Main1Window(QMainWindow):
         self.current_user_email = current_user_email 
         self.db = db
         self.first_name = Firstname
+        self.last_name = Lastname
         self.phone_number = Phonenumber
         self.current_password = current_password
+        
 
         # Create a QLabel to display the image
         image_label = QLabel(self.stacked_widget)
@@ -409,12 +457,25 @@ class Main1Window(QMainWindow):
         self.wallet_page() # 15
         self.loan_balance_page() #16
         self.loan_request_page() #17
-        self.savings_account_page() #18
+        self.savings_account_page(db, current_user_email) #18
         self.notification_page() #19
         self.email_page(db, current_user_email) # 20
         self.mobile_number_page(db, Phonenumber) #21
-      
+        self.myaccount_page(db, current_user_email) #22
+        self.create_pin_page(db, current_user_email) #23
+        self.change_pin_page(db, current_user_email, Phonenumber) #24
+        self.saving_balance_page(db, current_user_email) #25
+        self.my_saving_account() #26
+        self.transfer_to_my_account() #27
+        self.saving_to_my_account_transfer()#28
+        self.investment_to_my_account_transfer() #29
+        self.mobile_wallet_to_account_transfer() #30
+        self.transfer_to_my_saving_account() #31
+        self.transfer_to_investment_account() #32
+        self.transfer_to_mobile_wallet() #33
+        self.stacked_widget.currentChanged.connect(self.handle_page_change)
 
+      
 
         # Create a frame
         self.frame = QFrame(self.centralWidget())
@@ -599,14 +660,17 @@ class Main1Window(QMainWindow):
         profile_button.setIconSize(profile_button.size())  # Set icon size to button size
     
 
-    
+        schedule.every().day.at("00:00").do(self.calculate_and_update_balance)
+      
 
    
 #Page index 0
     def home_page(self, db , current_user_email,Firstname):
-        self.current_user_email = current_user_email 
+        self.current_user_email = current_user_email
         self.db = db
         self.first_name = Firstname
+        
+        
 
         home_widget = QWidget()
         self.icon_label = QLabel(self.central_widget)
@@ -622,30 +686,67 @@ class Main1Window(QMainWindow):
         home_label.setAlignment(Qt.AlignCenter)
 
         home1_widget = QWidget()
-        home1_label = QLabel(" <html><p> Home<p></>", home1_widget)
+        home1_label = QLabel("""
+            <html>
+                <body>
+                    
+                        <div style=' font-size: 30px; font-weight: bold; color: red;'>Transaction</div>
+                      
+                    
+                </body>
+            </html>
+        """, home1_widget)
         home1_label.setGeometry(50,150,800,500)
         home1_label.setStyleSheet(
             "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
-        home1_label.setAlignment(Qt.AlignCenter)
+        home1_label.setAlignment(Qt.AlignTop | Qt.AlignLeft)
         home1_label.setParent(home_widget)
 
         
-        home2_widget = QWidget()
-        home2_label = QLabel(" <html><p> Home<p></>", home2_widget)
-        home2_label.setGeometry(50,680,800,200)
-        home2_label.setStyleSheet(
-            "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
-        home2_label.setAlignment(Qt.AlignCenter)
-        home2_label.setParent(home_widget)
+        self.home2_widget = QWidget()
+        self.home2_label = QLabel("""
+            <html>
+                <body>
+                    
+                        <div style=' font-size: 30px; font-weight: bold; color: red;'>Accounts</div>
+                        <div style='text-align:center; font-size: 24px; color: white;'>No Account Created</div>
+                    </div>
+                </body>
+            </html>
+        """, self.home2_widget)
+        self.home2_label.setAlignment(Qt.AlignTop | Qt.AlignLeft)  # Set alignment to top-left
+        self.home2_label.setGeometry(50, 680, 800, 200)
+        self.home2_label.setStyleSheet(
+            """
+            QLabel {
+                background-color: black;
+                color: red;
+                font-size: 24px;
+                padding: 20px;
+                border-radius: 40px;
+            }
+            """
+        )
+
+        self.home2_label.setParent(home_widget)
         
 
-        home3_widget = QWidget()
-        home3_label = QLabel(" <html><p> Home<p></>", home3_widget)
-        home3_label.setGeometry(900,150,350,300)
-        home3_label.setStyleSheet(
+        self.home3_widget = QWidget()
+        self.home3_label = QLabel("""
+            <html>
+                <body>
+                    
+                        <div style=' font-size: 30px; font-weight: bold; color: red;'>Alerts</div>
+                        <div style='text-align:center; font-size: 24px; color: white;'>No Alerts</div>
+                    </div>
+                </body>
+            </html>
+        """, self.home3_widget)
+        self.home3_label.setGeometry(900,150,350,300)
+        self.home3_label.setStyleSheet(
             "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
-        home3_label.setAlignment(Qt.AlignCenter)
-        home3_label.setParent(home_widget)
+        self.home3_label.setAlignment(Qt.AlignTop | Qt.AlignLeft)
+        self.home3_label.setParent(home_widget)
 
         home4_widget = QWidget()
         home4_label = QLabel(" <html><p> Home<p></>", home4_widget)
@@ -696,7 +797,36 @@ class Main1Window(QMainWindow):
         
         
         self.stacked_widget.addWidget(home_widget)
+        
 
+        
+        
+        
+        
+    def update_home_page_slot(self, account_id):
+
+       # Load circular icon
+        pixmap = QPixmap("user.png")  # Replace with your circular icon path
+
+        # Create HTML for icon and account ID
+        account_info_html = f"""
+            <div style='display: flex; align-items: center;'>
+                <img src='user.png' width='50' height='50' style='border-radius: 50%; margin-right: 10px;'>
+                <div style='font-size: 18px; color: white;'>{account_id}</div>
+            </div>
+        """
+        
+
+        # Update the QLabel's HTML content
+        self.home2_label.setText(f"""
+            <html>
+                <body>
+                    <div style='font-size: 30px; font-weight: bold; color: red;'>Accounts</div>
+                    {account_info_html}
+                </body>
+            </html>
+        """)
+        
     def setCircularIcon(self, label, icon_path, size=80, position=(10, 10)):
         pixmap = QPixmap(icon_path).scaled(QSize(size, size), Qt.KeepAspectRatio)
         rounded_pixmap = QPixmap(pixmap.size())
@@ -847,11 +977,976 @@ class Main1Window(QMainWindow):
         balance_label.setAlignment(Qt.AlignCenter)
        # profile_layout.addWidget(welcome_label)
 
-        bal_label = QLabel("<html><p>Current Balance: $0.00<p></html>", balance_widget)
+        self.source_account_label = QLabel('<U> Select source Account</>',balance_widget)
+        self.source_account_label.setGeometry(50, 180, 600, 80)
+        self.source_account_label.setStyleSheet("background-color: transparent; color: white; padding: 20px; border-radius: 40px; font-size: 20pt;")
+        self.source_account_label.setParent(balance_widget)
+
+
+
         
+      
+        my_account_button = QPushButton(self)
+        my_account_button.setGeometry(50, 250, 500, 50)
+                         
+        # Set the icon size explicitly
+        icon_size = QSize(30, 30)  # Adjust the size as needed
+        my_account_button.setIconSize(icon_size)
+
+         # Set the icon position to the left side of the button
+        my_account_button.setStyleSheet("""
+                        QPushButton {
+                                     background-color: white;
+                                     font-size: 12pt; 
+                                     border-radius: 35px;
+                                     text-align: left;  /* Align text to the left */
+                                     padding-left: 40px;  /* Space for the icon */
+                                               
+                                     }          
+                        
+                        QPushButton::icon {
+                                     padding-right: 15px;  /* Space between icon and text */
+                                    }
+                        QPushButton:hover{
+                                     background-color:#333333
+                                    } 
+                                    
+                                                """)
+
+# Set the icon to the left of the button text
+        icon = QIcon("financial.png")
+        my_account_button.setIcon(icon)
+
+# Set the text for the button
+        my_account_button.setText(" | My Account")
+
+        my_account_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(22))
+
+        my_account_button.setParent(balance_widget)
+
+
+        
+        investment_account_button = QPushButton(self)
+        investment_account_button.setGeometry(50, 330, 500, 50)
+                         
+        # Set the icon size explicitly
+        icon_size = QSize(30, 30)  # Adjust the size as needed
+        investment_account_button.setIconSize(icon_size)
+
+         # Set the icon position to the left side of the button
+        investment_account_button.setStyleSheet("""
+                        QPushButton {
+                                     background-color: white;
+                                     font-size: 12pt; 
+                                     border-radius: 35px;
+                                     text-align: left;  /* Align text to the left */
+                                     padding-left: 40px;  /* Space for the icon */
+                                               
+                                     }          
+                        
+                        QPushButton::icon {
+                                     padding-right: 15px;  /* Space between icon and text */
+                                    }
+                        QPushButton:hover{
+                                     background-color:#333333
+                                    } 
+                                    
+                                                """)
+
+# Set the icon to the left of the button text
+        icon = QIcon("financial.png")
+        investment_account_button.setIcon(icon)
+
+# Set the text for the button
+        investment_account_button.setText(" | Investment Account")
+
+      #  my_account_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(9))
+
+        investment_account_button.setParent(balance_widget)
+
+
+        
+        saving_balance_button = QPushButton(self)
+        saving_balance_button.setGeometry(50, 410, 500, 50)
+                         
+        # Set the icon size explicitly
+        icon_size = QSize(30, 30)  # Adjust the size as needed
+        saving_balance_button.setIconSize(icon_size)
+
+         # Set the icon position to the left side of the button
+        saving_balance_button.setStyleSheet("""
+                        QPushButton {
+                                     background-color: white;
+                                     font-size: 12pt; 
+                                     border-radius: 35px;
+                                     text-align: left;  /* Align text to the left */
+                                     padding-left: 40px;  /* Space for the icon */
+                                               
+                                     }          
+                        
+                        QPushButton::icon {
+                                     padding-right: 15px;  /* Space between icon and text */
+                                    }
+                        QPushButton:hover{
+                                     background-color:#333333
+                                    } 
+                                    
+                                                """)
+
+# Set the icon to the left of the button text
+        icon = QIcon("financial.png")
+        saving_balance_button.setIcon(icon)
+
+# Set the text for the button
+        saving_balance_button.setText(" | Saving Account")
+
+        saving_balance_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(25))
+
+        saving_balance_button.setParent(balance_widget)
+
+        
+        loan_account_button = QPushButton(self)
+        loan_account_button.setGeometry(50, 490, 500, 50)
+                         
+        # Set the icon size explicitly
+        icon_size = QSize(30, 30)  # Adjust the size as needed
+        loan_account_button.setIconSize(icon_size)
+
+         # Set the icon position to the left side of the button
+        loan_account_button.setStyleSheet("""
+                        QPushButton {
+                                     background-color: white;
+                                     font-size: 12pt; 
+                                     border-radius: 35px;
+                                     text-align: left;  /* Align text to the left */
+                                     padding-left: 40px;  /* Space for the icon */
+                                               
+                                     }          
+                        
+                        QPushButton::icon {
+                                     padding-right: 15px;  /* Space between icon and text */
+                                    }
+                        QPushButton:hover{
+                                     background-color:#333333
+                                    } 
+                                    
+                                                """)
+
+# Set the icon to the left of the button text
+        icon = QIcon("financial.png")
+        loan_account_button.setIcon(icon)
+
+# Set the text for the button
+        loan_account_button.setText(" | Loan Account ")
+
+      #  my_account_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(9))
+
+        loan_account_button.setParent(balance_widget)
+
+
+
+
        
 
         self.stacked_widget.addWidget(balance_widget)    
+    def myaccount_page(self, db, current_user_email):
+        self.current_user_email = current_user_email
+        self.db = db
+
+        mybalance_widget = QWidget()
+       
+        mybalance_label = QLabel("<html><p>Balance Enquiry<p></>", mybalance_widget)
+        mybalance_label.setGeometry(350,50,600,80)
+        mybalance_label.setStyleSheet(
+            "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
+        mybalance_label.setAlignment(Qt.AlignCenter)
+
+
+        
+       
+        self.acc_label = QLabel("<html><p>Gh¢ ×.×× <p></>", mybalance_widget)
+        self.acc_label.setGeometry(900,180,300,300)
+        self.acc_label.setStyleSheet(
+            "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
+        self.acc_label.setAlignment(Qt.AlignCenter)
+        self.acc_label.hide()
+        self.acc_label.setParent(mybalance_widget)
+
+
+         # Create a line edit for password input field
+        self.pin_input = QLineEdit(self)
+        input_width = 350
+        input_x = (self.width() - input_width) // 9
+        self.pin_input.setGeometry(input_x, 200, input_width, 50)
+        # Set placeholder text for the password input field
+        self.pin_input.setPlaceholderText("Enter Pin")
+        # Appply styling to the password input field
+        self.pin_input.setStyleSheet("border-radius: 25; padding : 10px; font-size: 16px; ")
+        # Enable the clear button to the clear input
+        self.pin_input.setClearButtonEnabled(True)
+        # Set an icon for the input field
+        icon = QIcon("padlock.png")
+        self.pin_input.addAction(icon, QLineEdit.LeadingPosition)
+        self.pin_input.setEchoMode(QLineEdit.Password)
+      #  self.pin_input.textChanged.connect(self.validate_pin)
+        self.pin_input.editingFinished.connect(self.reset_pin_input_style)
+        self.pin_input.setParent(mybalance_widget)
+        print(input_x)
+
+
+        # Create checkbox to toggle password visibility
+        self.show_pin_checkbox = QCheckBox("Show Pin", self)
+        self.show_pin_checkbox.setStyleSheet("color: black; font-size : 16px")
+        box_width = 150
+        box_x = (self.width() - box_width) // 10
+        self.show_pin_checkbox.setGeometry(box_x, 247, box_width , 30)
+        self.show_pin_checkbox.stateChanged.connect(self.toggle_pin_visibility)
+
+        self.show_pin_checkbox.setParent(mybalance_widget)
+
+
+        self.forgot_pin_button = QPushButton("forgot Pin ?", self)
+        button_width2 = 300
+        button_z = (self.width() - button_width2) //4
+        self.forgot_pin_button.setGeometry (button_z, 247, button_width2 ,30)
+        self.forgot_pin_button.setStyleSheet("""
+                             QPushButton {
+                             background-color: transparent;
+                             border:none;
+                              font-size: 16px; 
+                              border-radius: 35px;
+                              color: black;
+                              }
+                               QPushButton:hover{
+                                  font-size: 15pt;
+                              }
+                          """)
+       # self.forgot_pin_button.clicked.connect(self.open_forgot_password_window)
+        self.forgot_pin_button.setParent(mybalance_widget)
+
+
+
+        
+        self.check_button = QPushButton("Check Balance", self)
+        button_width = 300  # Adjust the width of the button as needed
+        button_x = (self.width() - button_width) // 8  # Center the button horizontally
+        self.check_button.setGeometry(button_x, 320, button_width, 70)
+        self.check_button.setStyleSheet("""
+                     QPushButton {
+                     background-color: blue;
+                      font-size: 18pt; 
+                      border-radius: 35px;
+                      }
+                       QPushButton:hover{
+                          background-color:brown
+                      }
+                  """)
+        
+        self.check_button.clicked.connect(self.check_my_balance)
+        self.check_button.setParent(mybalance_widget)
+
+
+    # Button for "Create Account"
+        self.activate_acc_button = QPushButton("Have You Activated Your Account ?", self)
+        button_width1 = 600  # Adjust the width of the button as needed
+        button_y = (self.width() - button_width) //1200 # Center the button horizontally
+        self.activate_acc_button.setGeometry(button_y, 400, button_width1, 70)
+        self.activate_acc_button.setStyleSheet("""
+                      QPushButton {
+                      background-color: transparent;
+                      border:none;
+                       font-size: 14pt; 
+                       border-radius: 35px;
+                       color: black;
+                       }
+                        QPushButton:hover{
+                           font-size: 20pt;
+                       }
+                   """)
+        self.activate_acc_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(23))
+        self.activate_acc_button.setParent(mybalance_widget)
+        print(self.width())
+        print(button_x)
+
+
+        
+        self.stacked_widget.addWidget(mybalance_widget)
+   
+
+    def check_my_balance(self):
+        self.check_pin_and_activate()
+        
+
+
+
+            
+    def check_pin_and_activate(self):
+         # Check if the user's account is activated by checking if the PIN is set
+        cursor = self.db.cursor()
+        email = self.current_user_email  # Assuming you have stored the current user's email
+        cursor.execute("SELECT PIN FROM my_accountdb WHERE Email = %s", (email,))
+        result = cursor.fetchone()
+        cursor.close()
+
+        if result and result[0]:  # PIN exists and is not empty
+            # Account is activated, proceed to verify PIN
+            self.verify_pin()
+        else:
+            # Account is not activated (PIN is empty), show appropriate message
+            QMessageBox.warning(self, "Account Not Activated", "Please set a PIN to activate your account.")
+
+
+    def verify_pin(self):
+
+        pin = self.pin_input.text()
+        email = self.current_user_email
+        
+
+        if pin == "" :
+            QMessageBox.information(self, "Pin field is empty", "Please Enter Pin")
+            return
+
+
+        
+
+       
+        try:
+            pin = self.pin_input.text()
+            PIN = hashlib.sha256(pin.encode()).hexdigest()
+            cursor = self.db.cursor()
+            print(pin)
+            print(PIN)
+            cursor.execute("SELECT Balance FROM my_accountdb WHERE Email = %s AND PIN = %s", (email, PIN))
+            result = cursor.fetchone()
+
+            if result:
+                balance = result[0]
+                self.acc_label.setText(f"Gh¢{balance}.")
+                self.acc_label.show()
+                print(PIN + " For checking balance")
+            else:
+                QMessageBox.warning(self, "Incorrect PIN", "Please enter the correct PIN.")
+
+            cursor.close()
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Unable to fetch account balance: {e}")
+
+
+
+
+
+    def create_pin_page(self, db, current_user_email):
+        self.current_user_email = current_user_email
+        self.db = db
+
+        create_pin_widget = QWidget()
+       
+        create_pin_label = QLabel("<html><p>Create New Pin To Activate Account<p></>", create_pin_widget)
+        create_pin_label.setGeometry(350,50,600,80)
+        create_pin_label.setStyleSheet(
+            "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
+        create_pin_label.setAlignment(Qt.AlignCenter)
+       # profile_layout.addWidget(welcome_label)
+
+         # Create a line edit for password input field
+        self.new_pin_input = QLineEdit(self)
+        self.new_pin_input.setGeometry(50, 200, 350, 50)
+        # Set placeholder text for the password input field
+        self.new_pin_input.setPlaceholderText("Enter New Pin")
+        # Appply styling to the password input field
+        self.new_pin_input.setStyleSheet("border-radius: 25; padding : 10px; font-size: 16px; ")
+        # Enable the clear button to the clear input
+        self.new_pin_input.setClearButtonEnabled(True)
+        # Set an icon for the input field
+        icon = QIcon("padlock.png")
+        self.new_pin_input.addAction(icon, QLineEdit.LeadingPosition)
+        self.new_pin_input.setEchoMode(QLineEdit.Password)
+        self.new_pin_input.textChanged.connect(self.validate_new_pin)
+        self.new_pin_input.editingFinished.connect(self.reset_new_pin_input_style)
+        self.new_pin_input.setParent(create_pin_widget)
+
+
+        # Create checkbox to toggle password visibility
+        self.show_new_pin_checkbox = QCheckBox("Show Pin", self)
+        self.show_new_pin_checkbox.setStyleSheet("color: black; font-size : 16px")
+        self.show_new_pin_checkbox.setGeometry(40, 247, 150 , 30)
+        self.show_new_pin_checkbox.stateChanged.connect(self.toggle_new_pin_visibility)
+
+        self.show_new_pin_checkbox.setParent(create_pin_widget)
+
+
+            # Create a line edit for password input field
+        self.confirm_new_pin_input = QLineEdit(self)
+        self.confirm_new_pin_input.setGeometry(50, 300, 350, 50)
+        # Set placeholder text for the password input field
+        self.confirm_new_pin_input.setPlaceholderText("Confirm New Pin")
+        # Appply styling to the password input field
+        self.confirm_new_pin_input.setStyleSheet("border-radius: 25; padding : 10px; font-size: 16px; ")
+        # Enable the clear button to the clear input
+        self.confirm_new_pin_input.setClearButtonEnabled(True)
+        # Set an icon for the input field
+        icon = QIcon("padlock.png")
+        self.confirm_new_pin_input.addAction(icon, QLineEdit.LeadingPosition)
+        self.confirm_new_pin_input.setEchoMode(QLineEdit.Password)
+        self.confirm_new_pin_input.textChanged.connect(self.validate_confirm_pin)
+        self.confirm_new_pin_input.editingFinished.connect(self.reset_confirm_new_pin_input_style)
+        self.confirm_new_pin_input.setParent(create_pin_widget)
+
+
+        # Create checkbox to toggle password visibility
+        self.show_confirm_new_pin_checkbox = QCheckBox("Show Pin", self)
+        self.show_confirm_new_pin_checkbox.setStyleSheet("color: black; font-size : 16px")
+        self.show_confirm_new_pin_checkbox.setGeometry(40, 347, 150 , 30)
+        self.show_confirm_new_pin_checkbox.stateChanged.connect(self.toggle_confirm_new_pin_visibility)
+
+        self.show_confirm_new_pin_checkbox.setParent(create_pin_widget)
+
+          # Create QLabel for notification messages
+        self.notification_label4 = QLabel("", self)
+        self.notification_label4.setGeometry(50, 440, 600, 50)
+        self.notification_label4.setStyleSheet("color: red; font-size: 25px;")
+        self.notification_label4.setParent(create_pin_widget)
+
+
+
+        self.pin_save_and_submit_button = QPushButton("Save and Submit", self)
+        button_width = 300  # Adjust the width of the button as needed
+        button_x = (self.width() - button_width) // 3  # Center the button horizontally
+        self.pin_save_and_submit_button.setGeometry(button_x, 700, button_width, 70)
+        self.pin_save_and_submit_button.setStyleSheet("""
+                     QPushButton {
+                     background-color: blue;
+                      font-size: 18pt; 
+                      border-radius: 35px;
+                      }
+                       QPushButton:hover{
+                          background-color:brown
+                      }
+                  """)
+        
+        self.pin_save_and_submit_button.clicked.connect(self.pin_save_and_submit)
+        self.pin_save_and_submit_button.setParent(create_pin_widget)
+        self.stacked_widget.addWidget(create_pin_widget) 
+
+
+
+    def pin_save_and_submit(self):
+       
+        self.check_pin_empty()
+
+
+
+
+    def check_pin_empty(self):
+        email = self.current_user_email  # Assuming you have stored the current user's email
+        
+        # Fetch the current PIN from the database
+        cursor = self.db.cursor()
+        cursor.execute("SELECT PIN FROM my_accountdb WHERE Email = %s", (email,))
+        result = cursor.fetchone()
+        cursor.close()
+
+        if result and result[0]:  # PIN is not empty
+            QMessageBox.information(self, "PIN Already Set", "Your PIN is already set.")
+        else:
+            # Prompt the user to set a new PIN
+            self.update_pin_data() 
+
+    def update_pin_data(self):    
+        email = self.current_user_email
+
+        new_pin = self.new_pin_input.text()
+        confirm_pin = self.confirm_new_pin_input.text()
+
+        hash_new_pin = hashlib.sha256(new_pin.encode()).hexdigest()
+        
+
+
+        if new_pin == "" :
+            self.notification_label4.setText("Please Enter New Pin")
+            self.notification_label4.show()
+            return
+        
+        if len(new_pin) != 4:
+            QMessageBox.warning(self, "Invalid PIN", "PIN must be exactly 4 digits.")
+            return
+        
+        if confirm_pin == "" :
+            self.notification_label4.setText("Please Confirm  Pin")
+            self.notification_label4.show()
+            return
+        
+        if len(confirm_pin) != 4:
+            QMessageBox.warning(self, "Invalid PIN", "Confirmation PIN must be exactly 4 digits.")
+            return
+
+        
+        if new_pin != confirm_pin :
+            self.notification_label4.setText("New Pin and Confirm Pin do not Macth")
+            self.notification_label4.show()
+            return
+        
+        self.notification_label4.hide()
+
+        try:
+             if self.db is None:
+                QMessageBox.critical(self, "Database Error", "Database connection not established.")
+                return
+             cursor = self.db.cursor()
+             new_pin = self.new_pin_input.text()
+             hash_new_pin = hashlib.sha256(new_pin.encode()).hexdigest()
+             print(new_pin)
+             print(hash_new_pin + "Create pin Hash")
+
+
+           
+
+             sql = "UPDATE my_accountdb SET PIN = %s WHERE Email = %s"
+             cursor.execute(sql, (hash_new_pin, email))
+             print(hash_new_pin + " Update pin its still the created pin")
+                                
+             self.db.commit()
+            
+             QMessageBox.information(self, "Pin Set", "You have successfully Activated Your Account")
+             self.main_window = MainWindow()
+             self.main_window.show()
+             self.close() 
+               
+             
+       
+        except mysql.connector.Error as e:
+            QMessageBox.critical(self, "Database Error", f"Error updating logout time: {e}")
+    
+        
+    def validate_new_pin(self,text):
+        new_pin_pattern = r'^[0-9]{4}$'  # Assuming a 10-digit phone number
+
+        new_pin_regex = re.compile(new_pin_pattern)
+
+        if new_pin_regex.match(text):
+            # Valid email format
+            self.new_pin_input.setStyleSheet("border-radius: 25px; border: 2px solid green;")
+        else:
+            # Invalid email format
+            self.new_pin_input.setStyleSheet("border-radius: 25px;  border: 5px solid red;")
+
+            # Set font size back to normal
+            font = self.new_pin_input.font()
+            font.setPointSize(10)  # Adjust the font size as needed
+            self.new_pin_input.setFont(font)  
+            
+    def validate_confirm_pin(self,text):
+            confirm_pin_pattern = r'^[0-9]{4}$'  # Assuming a 10-digit phone number
+
+            confirm_pin_regex = re.compile(confirm_pin_pattern)
+
+            if confirm_pin_regex.match(text):
+            # Valid email format
+                self.confirm_new_pin_input.setStyleSheet("border-radius: 25px; border: 2px solid green;")
+            else:
+            # Invalid email format
+                self.confirm_new_pin_input.setStyleSheet("border-radius: 25px;  border: 5px solid red;")
+
+            # Set font size back to normal
+                font = self.confirm_new_pin_input.font()
+                font.setPointSize(10)  # Adjust the font size as needed
+                self.confirm_new_pin_input.setFont(font)   
+      
+
+
+            
+
+
+
+    
+            
+
+
+        
+     
+       
+
+        
+    def toggle_pin_visibility(self, state):
+        if state == Qt.Checked:
+            # Show pin
+            self.pin_input.setEchoMode(QLineEdit.Normal)
+        else:
+            # Hide pin
+            self.pin_input.setEchoMode(QLineEdit.Password) 
+
+    def toggle_new_pin_visibility(self, state):
+        if state == Qt.Checked:
+            # Show pin
+            self.new_pin_input.setEchoMode(QLineEdit.Normal)
+        else:
+            # Hide pin
+            self.new_pin_input.setEchoMode(QLineEdit.Password)
+
+    def toggle_confirm_new_pin_visibility(self, state):
+        if state == Qt.Checked:
+            # Show pin
+            self.confirm_new_pin_input.setEchoMode(QLineEdit.Normal)
+        else:
+            # Hide pin
+            self.confirm_new_pin_input.setEchoMode(QLineEdit.Password)
+                    
+            
+            
+
+        
+    @pyqtSlot()
+    def reset_pin_input_style(self):
+        # Reset the stylesheet when the user leaves the input field
+        self.pin_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+     
+    @pyqtSlot()
+
+    def reset_new_pin_input_style(self):
+        # Reset the stylesheet when the user leaves the input field
+        self.new_pin_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+    
+    @pyqtSlot()
+
+    def reset_confirm_new_pin_input_style(self):
+        # Reset the stylesheet when the user leaves the input field
+        self.confirm_new_pin_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+    
+
+    
+    
+    
+    
+    def saving_balance_page(self, db, current_user_email):
+        self.current_user_email = current_user_email
+        self.db = db
+
+        mysbalance_widget = QWidget()
+       
+        mysbalance_label = QLabel("<html><p>Savings Balance Enquiry<p></>", mysbalance_widget)
+        mysbalance_label.setGeometry(350,50,600,80)
+        mysbalance_label.setStyleSheet(
+            "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
+        mysbalance_label.setAlignment(Qt.AlignCenter)
+        mysbalance_label.setParent(mysbalance_widget)
+
+
+        
+       
+        self.sacc_label = QLabel("<html><p>Gh¢ ×.×× <p></>", mysbalance_widget)
+        self.sacc_label.setGeometry(900,180,300,300)
+        self.sacc_label.setStyleSheet(
+            "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
+        self.sacc_label.setAlignment(Qt.AlignCenter)
+        self.sacc_label.hide()
+        self.sacc_label.setParent(mysbalance_widget)
+
+
+         # Create a line edit for password input field
+        self.accountnum_input = QLineEdit(self)
+        account_input_width = 350
+        account_x = (self.width() - account_input_width) // 9
+        self.accountnum_input.setGeometry(account_x, 200, account_input_width, 50)
+        # Set placeholder text for the password input field
+        self.accountnum_input.setPlaceholderText("Enter Account ID")
+        # Appply styling to the password input field
+        self.accountnum_input.setStyleSheet("border-radius: 25; padding : 10px; font-size: 16px; ")
+        # Enable the clear button to the clear input
+        self.accountnum_input.setClearButtonEnabled(True)
+        # Set an icon for the input field
+        icon = QIcon("padlock.png")
+        self.accountnum_input.addAction(icon, QLineEdit.LeadingPosition)
+        
+        self.accountnum_input.setParent(mysbalance_widget)
+
+        self.check_sab_button = QPushButton("Check Balance", self)
+        sab_button_width = 300  # Adjust the width of the button as needed
+        sab_button_x = (self.width() - sab_button_width) // 8  # Center the button horizontally
+        self.check_sab_button.setGeometry(sab_button_x, 320, sab_button_width, 70)
+        self.check_sab_button.setStyleSheet("""
+                     QPushButton {
+                     background-color: blue;
+                      font-size: 18pt; 
+                      border-radius: 35px;
+                      }
+                       QPushButton:hover{
+                          background-color:brown
+                      }
+                  """)
+        
+        self.check_sab_button.clicked.connect(self.check_my_sabalance)
+        self.check_sab_button.setParent(mysbalance_widget)
+
+          # Create QLabel for notification messages
+        self.saving_balance_notification_label = QLabel("", self)
+        self.saving_balance_notification_label.setGeometry(50, 500, 600, 50)
+        self.saving_balance_notification_label.setStyleSheet("color: red; font-size: 25px;")
+        self.saving_balance_notification_label.setParent(mysbalance_widget)
+
+
+                
+# Inside your initialization method or where you create the widgets
+        self.sab_regenerate_otp_button = QPushButton(self)
+        self.sab_regenerate_otp_button.setIcon(QIcon("refresh-page-option.png"))  # Set the icon for the button
+        self.sab_regenerate_otp_button.setToolTip("Regenerate OTP")  # Optional tooltip for the button
+        # Adjust the position and size of the button as needed
+        self.sab_regenerate_otp_button.setGeometry(910, 335, 40, 40)
+        self.sab_regenerate_otp_button.setStyleSheet("""
+                     QPushButton {
+                     background-color: blue;
+                      font-size: 18pt; 
+                      border-radius: 35px;
+                      }
+                       QPushButton:hover{
+                          background-color:#333333
+                      }
+                  """)
+        self.sab_regenerate_otp_button.hide()
+        self.sab_regenerate_otp_button.clicked.connect(self.generate_otp4)  # Connect the clicked signal
+        self.sab_regenerate_otp_button.setParent(mysbalance_widget)
+        
+     
+
+        self.otp_generated4 = False
+        self.otp4= ""
+
+        #Create a QLabel for the information display 
+        self.info_label4_widget = QWidget()
+        self.info_label4 = QLabel("<html><p>Enter the OTP....You have 1 minutes<p></html> ", self.info_label1_widget)
+        self.info_label4.setAlignment(Qt.AlignCenter)
+        self.info_label4.setGeometry(550,200,400,40)
+        self.info_label4.setStyleSheet("background-color: black; color: white; padding: 10px; border-radius: 100px; font-size: 10pt;")
+        self.info_label4.hide() # Hide the info label initially
+        self.info_label4.setParent(mysbalance_widget)
+
+        #create a container widget for the otp input
+        self.container4 = QWidget()
+        self.container4.setGeometry(550,235,400,100)
+        self.container4.setStyleSheet("background-color: blue; border-radius: 5px; padding: 5px;")
+        self.container4.hide()
+        self.container4.setParent(mysbalance_widget)
+
+        # Create a QVBoxLayout for the container
+        self.container_layout4 = QVBoxLayout(self.container4)
+        self.container_layout4.setContentsMargins(0, 0, 0, 0)  # No margins
+       # self.container_layout.setParent(email_widget)
+
+
+       
+
+        #Create a QHBoxlayout for the OTP boxes 
+        self.layout = QHBoxLayout()
+        self.layout.setContentsMargins(10,10,10,10) #set Margins
+      #  self.layout.setParent(email_widget)
+
+        #Create Six QLineEDIT Boxes for the otp
+        self.otp4_boxes = []
+        for _ in range(6):
+            otp4_box = QLineEdit(self.container4)
+            otp4_box.setFixedSize(50, 50)  # Set fixed size for each box
+            otp4_box.setMaxLength(1)  # Limit input to one character
+            otp4_box.setAlignment(Qt.AlignCenter)  # Center align text
+            otp4_box.setStyleSheet(
+                "background-color: white; border: 1px solid black; border-radius: 10px; font-size: 18px;")
+            self.layout.addWidget(otp4_box)
+            self.otp4_boxes.append(otp4_box)
+             # Connect textChanged signal to handle_otp_input slot
+            otp4_box.textChanged.connect(self.handle_otp_input4)
+
+
+        self.container_layout4.addLayout(self.layout)
+
+
+           # Create a QLabel for time remaining display (initially hidden)
+        self.timer_label4_widget = QWidget()
+        self.timer_label4 = QLabel("<html><p>Time remaining....60 seconds<p></html> ", self.timer_label1_widget)
+        self.timer_label4.setAlignment(Qt.AlignCenter)
+        self.timer_label4.setGeometry(550,335,360,40)
+        self.timer_label4.setStyleSheet("background-color: black; color: white; padding: 10px; border-radius: 100px; font-size: 10pt;")
+        self.timer_label4.hide()
+        self.timer_label4.setParent(mysbalance_widget)
+
+
+
+
+        self.stacked_widget.addWidget(mysbalance_widget)
+
+        
+    def handle_otp_input4(self, text):
+        current_box4 = self.sender()  # Get the sender QLineEdit
+        index = self.otp4_boxes.index(current_box4)
+        if len(text) == 1 and index < len(self.otp4_boxes) - 1:
+            self.otp4_boxes[index + 1].setFocus()  # Move focus to the next box
+        elif len(text) == 1 and index == len(self.otp4_boxes) - 1:
+            self.check_otp4()
+               
+
+    def update_timer4(self):
+        self.time_left -= 1
+        self.timer_label4.setText(f"Time remaining: {self.time_left} seconds")
+        if self.time_left == 0:
+            self.timer.stop()
+            self.clear_otp_input4()
+            self.otp_generated4
+            self.otp_generated4 = False
+            QMessageBox.warning(self, "OTP Expired", "Your OTP has expired. Please request a new OTP.")
+         
+                
+
+
+
+    
+
+
+    def check_my_sabalance(self):
+
+        account_number = self.accountnum_input.text()
+    
+        entered_otp = self.otp4 # Get the entered OTP
+ 
+      
+
+        if account_number == "":
+            self.saving_balance_notification_label.setText("Please Enter Account Number.")
+            self.saving_balance_notification_label.show()
+            
+            return
+        
+          # Reset UI and state for a new OTP process if OTP is already generated
+        if self.otp_generated4:
+            self.reset_ui_for_new_otp()
+        self.calculate_and_update_balance(account_number)    
+
+
+      
+
+     
+
+        if not self.otp_generated4:
+            self.generate_otp4()
+            self.otp_generated4 = True
+            self.info_label4.show()
+            self.container4.show()
+            self.timer_label4.show()
+            self.sab_regenerate_otp_button.show()
+            self.saving_balance_notification_label.setText("")
+            self.accountnum_input.hide()
+      
+            self.start_timer4()
+           
+          
+
+        self.saving_balance_notification_label.hide()
+        
+     
+    def start_timer4(self):
+
+         # Check if timer is already running, stop it first
+        if hasattr(self, 'timer') and self.timer.isActive():
+            self.timer.stop()
+           # Initialize timer
+        self.time_left = 60 # 3 minutes (180 seconds)
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_timer4)
+        self.timer.start(1000)  # Update timer every 
+        
+    
+    def update_database4(self):
+
+        try:
+            if self.db is None:
+                QMessageBox.critical(self, "Database Error", "Database connection not established.")
+                return
+            
+            cursor = self.db.cursor()
+            account_number = self.accountnum_input.text()
+            
+           
+            cursor.execute("SELECT  Amount FROM saving_accountdb WHERE Account_ID = %s", (account_number,))
+            result = cursor.fetchone()
+
+            if result:
+                Amount = result[0]
+                self.sacc_label.setText(f"Gh¢ {Amount}")
+                self.sacc_label.show()
+            
+            else:
+                QMessageBox.warning(self, "Error", "Account not found")
+
+                cursor.close() 
+        
+        except mysql.connector.Error as e:
+            QMessageBox.critical(self, "Database Error", f"Error updating logout time: {e}")
+    
+        
+        
+        
+       
+    def generate_otp4(self):
+        email = self.current_user_email
+        number = self.phone_number
+        self.otp4 = str(random.randint(100000, 999999))
+        print(f"Sending OTP to {email}")
+        print(f"""Your Verification code: {self.otp4}
+For security reasons, do not share
+this code with anyone. Enter this code 
+to successfully change your Email Address""") 
+        print(f"Sending OTP to {number}")
+        print(f"""Your Verification code: {self.otp4}
+For security reasons, do not share
+this code with anyone. Enter this code 
+to successfully change your Email Address""") # Print the generated OTP
+        self.start_timer4()
+
+    def send_otp4(self,number):
+        print(f"Sending OTP to {number}")    
+
+
+    def clear_otp_input4(self):
+        for otp_box in self.otp4_boxes:
+            otp_box.clear()  
+
+    def reset_ui_for_new_otp(self):
+        self.otp_generated4 = False
+        self.clear_otp_input4()
+        self.info_label4.hide()
+        self.container4.hide()
+        self.timer_label4.hide()
+        self.sab_regenerate_otp_button.hide()
+        self.saving_balance_notification_label.hide()
+        self.accountnum_input.clear()
+        self.accountnum_input.show()
+        self.sacc_label.hide()        
+
+    def check_otp4(self):
+        entered_otp = "".join(box.text() for box in self.otp4_boxes)
+
+        if self.time_left <= 0:
+           QMessageBox.warning(self, "OTP Expired", "Your OTP has expired. Please request a new OTP.")
+           self.clear_otp_input4()
+           self.otp_generated4 = False
+           return
+           
+        if entered_otp == self.otp4:
+            QMessageBox.information(self, "Success", "OTP Matched Successfully")
+            self.clear_otp_input4()
+            
+            self.info_label4.hide()
+            self.container4.hide()
+            self.timer_label4.hide()
+            self.sab_regenerate_otp_button.hide()
+            self.timer.stop() 
+            self.update_database4()
+            
+          
+           
+
+
+        else:
+            QMessageBox.warning(self, "Error", "Invalid OTP, Please try again")
+            self.clear_otp_input4()
+            self.otp_generated4 = False   
+
         
     def mini_statement_page(self):
         statement_widget = QWidget()
@@ -999,10 +2094,52 @@ class Main1Window(QMainWindow):
 
 
 
+
+
+
+        
+            
+        savings_account_button = QPushButton(self)
+        savings_account_button.setGeometry(50, 200, 500, 50)
+                         
+        # Set the icon size explicitly
+        icon_size = QSize(30, 30)  # Adjust the size as needed
+        savings_account_button.setIconSize(icon_size)
+
+         # Set the icon position to the left side of the button
+        savings_account_button.setStyleSheet("""
+                        QPushButton {
+                                     background-color: white;
+                                     font-size: 12pt; 
+                                     border-radius: 35px;
+                                     text-align: left;  /* Align text to the left */
+                                     padding-left: 40px;  /* Space for the icon */
+                                               
+                                     }          
+                        
+                        QPushButton::icon {
+                                     padding-right: 15px;  /* Space between icon and text */
+                                    }
+                        QPushButton:hover{
+                                     background-color:#333333
+                                    } 
+                                    
+                                                """)
+
+# Set the icon to the left of the button text
+        icon = QIcon("piggy-bank.png")
+        savings_account_button.setIcon(icon)
+
+# Set the text for the button
+        savings_account_button.setText(" | Edit Saving Account(s)")
+
+        savings_account_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(26))
+
+        savings_account_button.setParent(savings_widget)
         # Create account
         
         account_button = QPushButton(self)
-        account_button.setGeometry(50, 200, 500, 50)
+        account_button.setGeometry(50, 280, 500, 50)
                          
         # Set the icon size explicitly
         icon_size = QSize(30, 30)  # Adjust the size as needed
@@ -1039,19 +2176,421 @@ class Main1Window(QMainWindow):
 
         account_button.setParent(savings_widget)
 
+
+
+
         self.stacked_widget.addWidget(savings_widget)
 
+    def my_saving_account(self):
+        my_saving_account_widget = QWidget()
+        my_saving_account_label = QLabel("<html><p> Edit Saving Account(s) <p></html>", my_saving_account_widget)
+        my_saving_account_label.setGeometry(350, 50, 600 , 80)
+        my_saving_account_label.setStyleSheet("background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")    
+        my_saving_account_label.setAlignment(Qt.AlignCenter)
 
-    def savings_account_page(self):
-        saccount_widget =QWidget()
-        saccount_label = QLabel("<html><p> Create Account <p></html>", saccount_widget)
+
+
+
+
+          
+        # Create a line edit for the First Name input field
+
+        self.saving_account_input = QLineEdit(self)
+        self.saving_account_input.setGeometry(50, 200, 350, 50) 
+        self.saving_account_input.setPlaceholderText("Account Number")
+        self.saving_account_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+        self.saving_account_input.setClearButtonEnabled(True)
+        self.saving_account_input.setParent(my_saving_account_widget)
+
+
+
+
+        self.first_name1_input = QLineEdit(self)
+        self.first_name1_input.setGeometry(50, 280, 350, 50) 
+        self.first_name1_input.setPlaceholderText("Enter First Name")
+        self.first_name1_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+        self.first_name1_input.setClearButtonEnabled(True)
+        self.first_name1_input.setParent(my_saving_account_widget)
+
+        self.last_name1_input = QLineEdit(self)
+        self.last_name1_input.setGeometry(50, 360, 350, 50) 
+        self.last_name1_input.setPlaceholderText(" Enter Last Name")
+        self.last_name1_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+        self.last_name1_input.setClearButtonEnabled(True)
+        self.last_name1_input.setParent(my_saving_account_widget)
+
+        self.goal1_input = QLineEdit(self)
+        self.goal1_input.setGeometry(50, 440, 350, 50) 
+        self.goal1_input.setPlaceholderText("Enter Purpose")
+        self.goal1_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+        self.goal1_input.setClearButtonEnabled(True)
+        self.goal1_input.setParent(my_saving_account_widget)
+        self.goal1_input.setParent(my_saving_account_widget)
+
+
+        self.save_acc_button = QPushButton("Save and Submit", self)
+        save_button_width = 300  # Adjust the width of the button as needed
+        save_button_x = (self.width() - save_button_width) // 3  # Center the button horizontally
+        self.save_acc_button.setGeometry(save_button_x, 700, save_button_width, 70)
+        self.save_acc_button.setStyleSheet("""
+                     QPushButton {
+                     background-color: blue;
+                      font-size: 18pt; 
+                      border-radius: 35px;
+                      }
+                       QPushButton:hover{
+                          background-color:#333333
+                      }
+                  """)
+        
+        self.save_acc_button.clicked.connect(self.save_acc)
+        self.save_acc_button.setParent(my_saving_account_widget)
+
+
+        
+          # Create QLabel for notification messages
+        self.save_notify_label = QLabel("", self)
+        self.save_notify_label.setGeometry(50, 600, 600, 50)
+        self.save_notify_label.setStyleSheet("color: red; font-size: 25px;")
+        self.save_notify_label.setParent(my_saving_account_widget)
+
+
+
+
+
+
+
+
+
+
+
+        self.stacked_widget.addWidget(my_saving_account_widget)
+    def fetch_accounts_by_email(self):
+        email = self.current_user_email
+
+        try:
+            cursor = self.db.cursor()
+            cursor.execute("SELECT Account_ID FROM saving_accountdb WHERE Email = %s", (email,))
+            accounts = [account[0] for account in cursor.fetchall()]
+            cursor.close()
+            return accounts
+        except Exception as e:
+            print(f"Error fetching accounts: {e}")
+            return []    
+        
+    def save_acc(self) :
+         
+
+        email = self.current_user_email
+        acc_num = self.saving_account_input.text()
+        f_name = self.first_name1_input.text()
+        l_name = self.last_name1_input.text()
+        Goal = self.goal1_input.text()
+
+        acc_numbers = self. fetch_accounts_by_email()
+
+
+
+        if acc_num not in acc_numbers:
+            self.save_notify_label.setText("Please Enter A Valid Accout number")
+            self.save_notify_label.show()
+            return
+    
+
+        if f_name =="" :
+           
+            self.save_notify_label.setText("Please Enter New First Name")
+            self.save_notify_label.show()
+            return
+        
+        if l_name =="" :
+           
+            self.save_notify_label.setText("Please Enter New Last Name")
+            self.save_notify_label.show()
+            return
+        
+        if Goal =="" :
+           
+            self.save_notify_label.setText("Please Enter Your New Purpose")
+            self.save_notify_label.show()
+            return
+        
+        self.save_notify_label.hide()
+
+        try:
+            if self.db is None:
+                QMessageBox.critical(self, "Database Error", "Database connection not established.")
+                return
+            
+
+            cursor = self.db.cursor()
+            # Insert the user details into the savings_accountdb
+            sql  = "UPDATE saving_accountdb SET FirstName = %s, LastName = %s, Goal = %s WHERE EMAIL = %s"
+            cursor.execute(sql, (f_name, l_name, Goal, email,))
+            self.db.commit()
+            cursor.close()
+            self.home3_label.setText(f"""
+               <html>
+                <body style='background-color: black; color: white; padding: 20px;'>
+                    <div style='font-size: 30px; font-weight: bold; color: red; text-align: center;'>Alerts</div>
+                    <div style='text-align: center; font-size: 24px; color: white;'>
+                        Your account {acc_num} details<br>have been updated
+                    </div>
+                </body>
+            </html>
+        """)
+            
+
+        
+
+        # Show a message with the account ID
+            QMessageBox.information(self, "Account Updated", "Your account details have been Updated ")
+
+        # Clear the input fields after successful submission
+            self.saving_account_input.clear()
+            self.first_name1_input.clear()
+            self.last_name1_input.clear()
+            self.goal1_input.clear()
+            
+    
+        except mysql.connector.Error as e:
+            QMessageBox.critical(self, "Database Error", f"Error saving account details: {e}") 
+
+
+
+
+ 
+
+
+    def savings_account_page(self, db, current_user_email):
+        
+        
+        saccount_widget = QWidget()
+        saccount_label = QLabel("<html><p> Create Account(s) <p></html>", saccount_widget)
         saccount_label.setGeometry(350, 50, 600 , 80)
         saccount_label.setStyleSheet("background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")    
         saccount_label.setAlignment(Qt.AlignCenter)
+        
+
+
+
+        
+        # Create a line edit for the First Name input field
+        self.first_name_input = QLineEdit(self)
+        self.first_name_input.setGeometry(50, 200, 350, 50) 
+        self.first_name_input.setPlaceholderText("First Name")
+        self.first_name_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+        self.first_name_input.setClearButtonEnabled(True)
+        self.first_name_input.setParent(saccount_widget)
+
+        self.last_name_input = QLineEdit(self)
+        self.last_name_input.setGeometry(50, 280, 350, 50) 
+        self.last_name_input.setPlaceholderText("Last Name")
+        self.last_name_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+        self.last_name_input.setClearButtonEnabled(True)
+        self.last_name_input.setParent(saccount_widget)
+
+        self.goal_input = QLineEdit(self)
+        self.goal_input.setGeometry(50, 360, 350, 50) 
+        self.goal_input.setPlaceholderText("Purpose")
+        self.goal_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+        self.goal_input.setClearButtonEnabled(True)
+        self.goal_input.setParent(saccount_widget)
+        self.goal_input.setParent(saccount_widget)
+
+
+        self.create_acc_button = QPushButton("Create Account", self)
+        button_width = 300  # Adjust the width of the button as needed
+        button_x = (self.width() - button_width) // 3  # Center the button horizontally
+        self.create_acc_button.setGeometry(button_x, 700, button_width, 70)
+        self.create_acc_button.setStyleSheet("""
+                     QPushButton {
+                     background-color: blue;
+                      font-size: 18pt; 
+                      border-radius: 35px;
+                      }
+                       QPushButton:hover{
+                          background-color:#333333
+                      }
+                  """)
+        
+        self.create_acc_button.clicked.connect(self.create_sacc)
+        self.create_acc_button.setParent(saccount_widget)
+
+
+        
+          # Create QLabel for notification messages
+        self.notify_label = QLabel("", self)
+        self.notify_label.setGeometry(50, 440, 600, 50)
+        self.notify_label.setStyleSheet("color: red; font-size: 25px;")
+        self.notify_label.setParent(saccount_widget)
+
+
+
+
+
+
+
+
+
+
         self.stacked_widget.addWidget(saccount_widget)
 
-        #Own account button
 
+    def generate_account_id(self):
+        
+    # Generate a UUID (Universally Unique Identifier)
+        unique_id = uuid.uuid4().hex[:8]  # Extract the first 8 characters
+    
+    # Add a random number to the UUID to ensure uniqueness
+        random_num = random.randint(1000, 9999)  # Generate a 4-digit random number
+        account_id = f"{unique_id}-{random_num}"  # Combine UUID and random number
+        
+        return account_id
+    
+    
+    
+    
+    def create_sacc(self):
+         
+        self.mysignal = pyqtSignal(str)
+        
+        
+        
+    # Get the input values from the user
+        
+        email = self.current_user_email
+        first_name = self.first_name_input.text()
+        last_name = self.last_name_input.text()
+        goal = self.goal_input.text()
+    
+    # Generate an account ID (you can replace this with your logic)
+        
+        Amount = 0.00
+
+        if first_name =="" :
+           
+            self.notify_label.setText("Please Enter First Name")
+            self.notify_label.show()
+            return
+        
+        if last_name =="" :
+           
+            self.notify_label.setText("Please Enter Last Name")
+            self.notify_label.show()
+            return
+        
+        if goal =="" :
+           
+            self.notify_label.setText("Please Enter Your Purpose")
+            self.notify_label.show()
+            return
+        
+        self.notify_label.hide()
+        
+        
+        
+         
+
+    # Save the details to the database
+        try:
+            if self.db is None:
+                QMessageBox.critical(self, "Database Error", "Database connection not established.")
+                return
+            account_id = self.generate_account_id()
+
+            cursor = self.db.cursor()
+            # Insert the user details into the savings_accountdb
+            sql  = "INSERT INTO saving_accountdb (Email, FirstName, LastName, Account_ID, Goal, Amount) VALUES (%s, %s, %s, %s, %s, %s)"
+            cursor.execute(sql, ( email, first_name, last_name, account_id, goal,  Amount,))
+            self.db.commit()
+            cursor.close()
+            self.update_home_page.emit(account_id)
+
+        
+
+        # Show a message with the account ID
+            QMessageBox.information(self, "Account Created", f"Your account has been created with Account ID: {account_id}")
+
+        # Clear the input fields after successful submission
+            self.first_name_input.clear()
+            self.last_name_input.clear()
+            self.goal_input.clear()
+            
+    
+        except mysql.connector.Error as e:
+            QMessageBox.critical(self, "Database Error", f"Error saving account details: {e}") 
+
+        #Own account button
+    def calculate_and_update_balance(self):
+        try:
+            cursor = self.db.cursor()
+
+            # Fetch the account data
+            cursor.execute("SELECT Amount, Created_at FROM saving_accountdb")
+            accounts = cursor.fetchall()
+
+            # Calculate interest for each account and update the database
+            for account_id, amount, created_at in accounts:
+                created_at = datetime.strptime(created_at, "%Y-%m-%d %H:%M:%S")
+                current_time = datetime.now()
+                elapsed_time = (current_time - created_at).days
+                interest_rate = 0.02  # Example interest rate of 2%
+                if elapsed_time > 0:
+                    interest = amount * (1 + interest_rate) ** (elapsed_time / 365) - amount
+                    new_amount = amount + interest
+
+                    # Update the balance and creation date in the database
+                    cursor.execute("UPDATE saving_accountdb SET Amount = %s, Created_at = %s WHERE Account_ID = %s",
+                                   (new_amount, current_time, account_id))
+                    self.db.commit()
+        
+               
+            cursor.close()
+            return None
+        except Exception as e:
+            return str(e)
+    
+    
+    
+
+    def start_scheduler(self):
+        while True:
+            schedule.run_pending()
+            time.sleep(1)  
+
+    def handle_alert(self, account_id, interest):
+        cursor = self.db.cursor()
+        cursor.execute("SELECT Firstname, Lastname FROM saving_accountdb WHERE Account_ID = %s", (account_id,))
+        account_info = cursor.fetchone()
+        cursor.close()
+
+        if account_info:
+            firstname, lastname = account_info
+            alert_message = f"""
+            <html>
+                <body>
+                    <div style='font-size: 30px; font-weight: bold; color: red;'>Alerts</div>
+                    <div style='text-align: center; font-size: 24px; color: white;'>
+                        Account {account_id} ({firstname} {lastname}) balance updated with interest: Gh¢ {interest:.2f}
+                    </div>
+                </body>
+            </html>
+        """
+        else:
+            alert_message = f"""
+            <html>
+                <body>
+                    <div style='font-size: 30px; font-weight: bold; color: red;'>Alerts</div>
+                    <div style='text-align: center; font-size: 24px; color: white;'>
+                        Account {account_id} balance updated with interest: Gh¢ {interest:.2f}
+                    </div>
+                </body>
+            </html>
+        """
+
+        self.home3_label.setText(alert_message)
+        
 
 
 
@@ -1196,7 +2735,680 @@ class Main1Window(QMainWindow):
         own_account_label.setGeometry(350, 50, 600 , 80)
         own_account_label.setStyleSheet("background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")    
         own_account_label.setAlignment(Qt.AlignCenter)
+
+
+
+        
+        self.own_source_account_label = QLabel('<U> Select Account Account to be Credited</>',own_account_widget)
+        self.own_source_account_label.setGeometry(50, 180, 600, 80)
+        self.own_source_account_label.setStyleSheet("background-color: transparent; color: white; padding: 20px; border-radius: 40px; font-size: 20pt;")
+        self.own_source_account_label.setParent(own_account_widget)
+
+
+        my_account_button = QPushButton(self)
+        my_account_button.setGeometry(50, 250, 500, 50)
+                         
+        # Set the icon size explicitly
+        icon_size = QSize(30, 30)  # Adjust the size as needed
+        my_account_button.setIconSize(icon_size)
+
+         # Set the icon position to the left side of the button
+        my_account_button.setStyleSheet("""
+                        QPushButton {
+                                     background-color: white;
+                                     font-size: 12pt; 
+                                     border-radius: 35px;
+                                     text-align: left;  /* Align text to the left */
+                                     padding-left: 40px;  /* Space for the icon */
+                                               
+                                     }          
+                        
+                        QPushButton::icon {
+                                     padding-right: 15px;  /* Space between icon and text */
+                                    }
+                        QPushButton:hover{
+                                     background-color:#333333
+                                    } 
+                                    
+                                                """)
+
+# Set the icon to the left of the button text
+        icon = QIcon("money.png")
+        my_account_button.setIcon(icon)
+
+# Set the text for the button
+        my_account_button.setText(" | My Account")
+
+        my_account_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(27))
+
+        my_account_button.setParent(own_account_widget)
+
+      
+        
+        from_saving_account_button = QPushButton(self)
+        from_saving_account_button.setGeometry(50, 330, 500, 50)
+                         
+        # Set the icon size explicitly
+        icon_size = QSize(30, 30)  # Adjust the size as needed
+        from_saving_account_button.setIconSize(icon_size)
+
+         # Set the icon position to the left side of the button
+        from_saving_account_button.setStyleSheet("""
+                        QPushButton {
+                                     background-color: white;
+                                     font-size: 12pt; 
+                                     border-radius: 35px;
+                                     text-align: left;  /* Align text to the left */
+                                     padding-left: 40px;  /* Space for the icon */
+                                               
+                                     }          
+                        
+                        QPushButton::icon {
+                                     padding-right: 15px;  /* Space between icon and text */
+                                    }
+                        QPushButton:hover{
+                                     background-color:#333333
+                                    } 
+                                    
+                                                """)
+
+# Set the icon to the left of the button text
+        icon = QIcon("money.png")
+        from_saving_account_button.setIcon(icon)
+
+# Set the text for the button
+        from_saving_account_button.setText(" | Saving Account")
+
+        from_saving_account_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(31))
+
+        from_saving_account_button.setParent(own_account_widget)
+
+
+        
+        from_investment_button = QPushButton(self)
+        from_investment_button.setGeometry(50, 410, 500, 50)
+                         
+        # Set the icon size explicitly
+        icon_size = QSize(30, 30)  # Adjust the size as needed
+        from_investment_button.setIconSize(icon_size)
+
+         # Set the icon position to the left side of the button
+        from_investment_button.setStyleSheet("""
+                        QPushButton {
+                                     background-color: white;
+                                     font-size: 12pt; 
+                                     border-radius: 35px;
+                                     text-align: left;  /* Align text to the left */
+                                     padding-left: 40px;  /* Space for the icon */
+                                               
+                                     }          
+                        
+                        QPushButton::icon {
+                                     padding-right: 15px;  /* Space between icon and text */
+                                    }
+                        QPushButton:hover{
+                                     background-color:#333333
+                                    } 
+                                    
+                                                """)
+
+# Set the icon to the left of the button text
+        icon = QIcon("money.png")
+        from_investment_button.setIcon(icon)
+
+# Set the text for the button
+        from_investment_button.setText(" | Investment Account")
+
+        from_investment_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(32))
+
+        from_investment_button.setParent(own_account_widget)
+
+        mobile_wallet_button = QPushButton(self)
+        mobile_wallet_button.setGeometry(50, 490, 500, 50)
+                         
+        # Set the icon size explicitly
+        icon_size = QSize(30, 30)  # Adjust the size as needed
+        mobile_wallet_button.setIconSize(icon_size)
+         # Set the icon position to the left side of the button
+        mobile_wallet_button.setStyleSheet("""
+                        QPushButton {
+                                     background-color: white;
+                                     font-size: 12pt; 
+                                     border-radius: 35px;
+                                     text-align: left;  /* Align text to the left */
+                                     padding-left: 40px;  /* Space for the icon */
+                                               
+                                     }          
+                        
+                        QPushButton::icon {
+                                     padding-right: 15px;  /* Space between icon and text */
+                                    }
+                        QPushButton:hover{
+                                     background-color:#333333
+                                    } 
+                                    
+                                                """)
+
+# Set the icon to the left of the button text
+        icon = QIcon("money.png")
+        mobile_wallet_button.setIcon(icon)
+
+# Set the text for the button
+        mobile_wallet_button.setText(" | Mobile Wallet")
+
+        mobile_wallet_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(33))
+
+        mobile_wallet_button.setParent(own_account_widget)
+
+
+        
+
+        
+        '''loan_account_button = QPushButton(self)
+        loan_account_button.setGeometry(50, 490, 500, 50)
+                         
+         Set the icon size explicitly
+        icon_size = QSize(30, 30)  # Adjust the size as needed
+        loan_account_button.setIconSize(icon_size)
+
+         # Set the icon position to the left side of the button
+        loan_account_button.setStyleSheet("""
+                        QPushButton {
+                                     background-color: white;
+                                     font-size: 12pt; 
+                                     border-radius: 35px;
+                                     text-align: left;  /* Align text to the left */
+                                     padding-left: 40px;  /* Space for the icon */
+                                               
+                                     }          
+                        
+                        QPushButton::icon {
+                                     padding-right: 15px;  /* Space between icon and text */
+                                    }
+                        QPushButton:hover{
+                                     background-color:#333333
+                                    } 
+                                    
+                                                """)
+
+# Set the icon to the left of the button text
+        icon = QIcon("financial.png")
+        loan_account_button.setIcon(icon)
+
+# Set the text for the button
+        loan_account_button.setText(" | Loan Account ")
+
+      #  my_account_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(9))
+
+        loan_account_button.setParent(balance_widget)'''
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         self.stacked_widget.addWidget(own_account_widget)
+
+    def transfer_to_my_saving_account(self) :
+        transfer_to_my_saving_account_widget =QWidget()
+        transfer_to_my_saving_account_label = QLabel("<html><p> Funds to Transfer Saving Account<p></html>", transfer_to_my_saving_account_widget)
+        transfer_to_my_saving_account_label.setGeometry(350, 50, 600 , 80)
+        transfer_to_my_saving_account_label.setStyleSheet("background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")    
+        transfer_to_my_saving_account_label.setAlignment(Qt.AlignCenter)
+
+        self.receiver_acc_input = QLineEdit(self)
+        self.receiver_acc_input.setGeometry(50, 200, 350, 50)
+        self.receiver_acc_input.setPlaceholderText("Enter Saving Account Number")
+        self.receiver_acc_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+        self.receiver_acc_input.setClearButtonEnabled(True)
+        self.receiver_acc_input.setParent(transfer_to_my_saving_account_widget)
+
+
+        self.transfer4_amount_input = QLineEdit(self)
+        self.transfer4_amount_input.setGeometry(50, 280, 350, 50)
+        self.transfer4_amount_input.setPlaceholderText("Amount to Transfer")
+        self.transfer4_amount_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+        self.transfer4_amount_input.setClearButtonEnabled(True)
+        self.transfer4_amount_input.setParent(transfer_to_my_saving_account_widget)
+
+        self.transfer4_button = QPushButton("Transfer", self)
+        transfer4_button_width = 300
+        transfer4_button_x = (self.width() - transfer4_button_width) // 3
+        self.transfer4_button.setGeometry(transfer4_button_x, 450, transfer4_button_width, 70)
+        self.transfer4_button.setStyleSheet("""
+                                           QPushButton {
+                                           background-color: blue;
+                                           font-size: 18pt;
+                                           border-radius: 35px;
+                                                        }
+                                           QPushButton:hover {
+                                           background-color: #333333;
+                                                        }
+                                          """)
+        #self.transfer_button.clicked.connect(self.perform_own_account_transfer)
+        self.transfer4_button.setParent(transfer_to_my_saving_account_widget)
+
+        self.transfer4_notify_label = QLabel("", self)
+        self.transfer4_notify_label.setGeometry(50, 550, 600, 50)
+        self.transfer4_notify_label.setStyleSheet("color: red; font-size: 25px;")
+        self.transfer4_notify_label.setParent(transfer_to_my_saving_account_widget)
+
+        self.stacked_widget.addWidget(transfer_to_my_saving_account_widget)
+
+    def transfer_to_investment_account(self) :
+
+        transfer_to_investment_account_widget =QWidget()
+        transfer_to_investment_account_label = QLabel("<html><p> Funds to Transfer to Investment Account<p></html>", transfer_to_investment_account_widget)
+        transfer_to_investment_account_label.setGeometry(350, 50, 600 , 80)
+        transfer_to_investment_account_label.setStyleSheet("background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")    
+        transfer_to_investment_account_label.setAlignment(Qt.AlignCenter)
+
+        self.receiver1_acc_input = QLineEdit(self)
+        self.receiver1_acc_input.setGeometry(50, 200, 350, 50)
+        self.receiver1_acc_input.setPlaceholderText("Investment Account Number")
+        self.receiver1_acc_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+        self.receiver1_acc_input.setClearButtonEnabled(True)
+        self.receiver1_acc_input.setParent(transfer_to_investment_account_widget)
+
+
+        self.transfer5_amount_input = QLineEdit(self)
+        self.transfer5_amount_input.setGeometry(50, 280, 350, 50)
+        self.transfer5_amount_input.setPlaceholderText("Amount to Transfer")
+        self.transfer5_amount_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+        self.transfer5_amount_input.setClearButtonEnabled(True)
+        self.transfer5_amount_input.setParent(transfer_to_investment_account_widget)
+
+        self.transfer5_button = QPushButton("Transfer", self)
+        transfer5_button_width = 300
+        transfer5_button_x = (self.width() - transfer5_button_width) // 3
+        self.transfer5_button.setGeometry(transfer5_button_x, 450, transfer5_button_width, 70)
+        self.transfer5_button.setStyleSheet("""
+                                           QPushButton {
+                                           background-color: blue;
+                                           font-size: 18pt;
+                                           border-radius: 35px;
+                                                        }
+                                           QPushButton:hover {
+                                           background-color: #333333;
+                                                        }
+                                          """)
+        #self.transfer_button.clicked.connect(self.perform_own_account_transfer)
+        self.transfer5_button.setParent(transfer_to_investment_account_widget)
+
+        self.transfer5_notify_label = QLabel("", self)
+        self.transfer5_notify_label.setGeometry(50, 550, 600, 50)
+        self.transfer5_notify_label.setStyleSheet("color: red; font-size: 25px;")
+        self.transfer5_notify_label.setParent(transfer_to_investment_account_widget)
+
+        self.stacked_widget.addWidget(transfer_to_investment_account_widget)
+
+
+    def transfer_to_mobile_wallet(self):
+
+        
+        transfer_to_mobile_wallet_widget =QWidget()
+        transfer_to_mobile_wallet_label = QLabel("<html><p> Funds to Transfer to Mobile Wallet<p></html>", transfer_to_mobile_wallet_widget)
+        transfer_to_mobile_wallet_label.setGeometry(350, 50, 600 , 80)
+        transfer_to_mobile_wallet_label.setStyleSheet("background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")    
+        transfer_to_mobile_wallet_label.setAlignment(Qt.AlignCenter)
+
+        self.receiver2_acc_input = QLineEdit(self)
+        self.receiver2_acc_input.setGeometry(50, 200, 350, 50)
+        self.receiver2_acc_input.setPlaceholderText("Mobile Number")
+        self.receiver2_acc_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+        self.receiver2_acc_input.setClearButtonEnabled(True)
+        self.receiver2_acc_input.setParent(transfer_to_mobile_wallet_widget)
+
+
+        self.transfer6_amount_input = QLineEdit(self)
+        self.transfer6_amount_input.setGeometry(50, 280, 350, 50)
+        self.transfer6_amount_input.setPlaceholderText("Amount to Transfer")
+        self.transfer6_amount_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+        self.transfer6_amount_input.setClearButtonEnabled(True)
+        self.transfer6_amount_input.setParent(transfer_to_mobile_wallet_widget)
+
+        self.transfer6_button = QPushButton("Transfer", self)
+        transfer6_button_width = 300
+        transfer6_button_x = (self.width() - transfer6_button_width) // 3
+        self.transfer6_button.setGeometry(transfer6_button_x, 450, transfer6_button_width, 70)
+        self.transfer6_button.setStyleSheet("""
+                                           QPushButton {
+                                           background-color: blue;
+                                           font-size: 18pt;
+                                           border-radius: 35px;
+                                                        }
+                                           QPushButton:hover {
+                                           background-color: #333333;
+                                                        }
+                                          """)
+        #self.transfer_button.clicked.connect(self.perform_own_account_transfer)
+        self.transfer6_button.setParent(transfer_to_mobile_wallet_widget)
+
+        self.transfer6_notify_label = QLabel("", self)
+        self.transfer6_notify_label.setGeometry(50, 550, 600, 50)
+        self.transfer6_notify_label.setStyleSheet("color: red; font-size: 25px;")
+        self.transfer6_notify_label.setParent(transfer_to_mobile_wallet_widget)
+
+        self.stacked_widget.addWidget(transfer_to_mobile_wallet_widget)
+
+
+    
+
+
+
+
+
+
+
+
+    def transfer_to_my_account(self):   
+        transfer_to_my_account_widget =QWidget()
+        transfer_to_my_account_label = QLabel("<html><p> Funds to Transfer-To Own Account<p></html>", transfer_to_my_account_widget)
+        transfer_to_my_account_label.setGeometry(350, 50, 600 , 80)
+        transfer_to_my_account_label.setStyleSheet("background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")    
+        transfer_to_my_account_label.setAlignment(Qt.AlignCenter)
+
+
+
+        
+        self.my_source_account_label = QLabel('<U> Select Source Account</>',transfer_to_my_account_widget)
+        self.my_source_account_label.setGeometry(50, 180, 600, 80)
+        self.my_source_account_label.setStyleSheet("background-color: transparent; color: white; padding: 20px; border-radius: 40px; font-size: 20pt;")
+        self.my_source_account_label.setParent(transfer_to_my_account_widget) 
+
+
+         
+        from_saving_account_to_my_account_button = QPushButton(self)
+        from_saving_account_to_my_account_button.setGeometry(50, 250, 500, 50)
+                         
+        # Set the icon size explicitly
+        icon_size = QSize(30, 30)  # Adjust the size as needed
+        from_saving_account_to_my_account_button.setIconSize(icon_size)
+
+         # Set the icon position to the left side of the button
+        from_saving_account_to_my_account_button.setStyleSheet("""
+                        QPushButton {
+                                     background-color: white;
+                                     font-size: 12pt; 
+                                     border-radius: 35px;
+                                     text-align: left;  /* Align text to the left */
+                                     padding-left: 40px;  /* Space for the icon */
+                                               
+                                     }          
+                        
+                        QPushButton::icon {
+                                     padding-right: 15px;  /* Space between icon and text */
+                                    }
+                        QPushButton:hover{
+                                     background-color:#333333
+                                    } 
+                                    
+                                                """)
+
+# Set the icon to the left of the button text
+        icon = QIcon("money.png")
+        from_saving_account_to_my_account_button.setIcon(icon)
+
+# Set the text for the button
+        from_saving_account_to_my_account_button.setText(" | Saving Account")
+
+        from_saving_account_to_my_account_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(28))
+
+        from_saving_account_to_my_account_button.setParent(transfer_to_my_account_widget)
+
+
+        
+        from_investment_account_to_my_account_button = QPushButton(self)
+        from_investment_account_to_my_account_button.setGeometry(50, 330, 500, 50)
+                         
+        # Set the icon size explicitly
+        icon_size = QSize(30, 30)  # Adjust the size as needed
+        from_investment_account_to_my_account_button.setIconSize(icon_size)
+
+         # Set the icon position to the left side of the button
+        from_investment_account_to_my_account_button.setStyleSheet("""
+                        QPushButton {
+                                     background-color: white;
+                                     font-size: 12pt; 
+                                     border-radius: 35px;
+                                     text-align: left;  /* Align text to the left */
+                                     padding-left: 40px;  /* Space for the icon */
+                                               
+                                     }          
+                        
+                        QPushButton::icon {
+                                     padding-right: 15px;  /* Space between icon and text */
+                                    }
+                        QPushButton:hover{
+                                     background-color:#333333
+                                    } 
+                                    
+                                                """)
+
+# Set the icon to the left of the button text
+        icon = QIcon("money.png")
+        from_investment_account_to_my_account_button.setIcon(icon)
+
+# Set the text for the button
+        from_investment_account_to_my_account_button.setText(" | Investment Account")
+
+        from_investment_account_to_my_account_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(29))
+
+        from_investment_account_to_my_account_button.setParent(transfer_to_my_account_widget)
+
+        mobile_wallet_to_my_account_button = QPushButton(self)
+        mobile_wallet_to_my_account_button.setGeometry(50, 410, 500, 50)
+                         
+        # Set the icon size explicitly
+        icon_size = QSize(30, 30)  # Adjust the size as needed
+        mobile_wallet_to_my_account_button.setIconSize(icon_size)
+         # Set the icon position to the left side of the button
+        mobile_wallet_to_my_account_button.setStyleSheet("""
+                        QPushButton {
+                                     background-color: white;
+                                     font-size: 12pt; 
+                                     border-radius: 35px;
+                                     text-align: left;  /* Align text to the left */
+                                     padding-left: 40px;  /* Space for the icon */
+                                               
+                                     }          
+                        
+                        QPushButton::icon {
+                                     padding-right: 15px;  /* Space between icon and text */
+                                    }
+                        QPushButton:hover{
+                                     background-color:#333333
+                                    } 
+                                    
+                                                """)
+
+# Set the icon to the left of the button text
+        icon = QIcon("money.png")
+        mobile_wallet_to_my_account_button.setIcon(icon)
+
+# Set the text for the button
+        mobile_wallet_to_my_account_button.setText(" | Mobile Wallet")
+
+        mobile_wallet_to_my_account_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(30))
+
+        mobile_wallet_to_my_account_button.setParent(transfer_to_my_account_widget)
+
+
+
+        self.stacked_widget.addWidget(transfer_to_my_account_widget)
+
+    def saving_to_my_account_transfer(self):
+
+        saving_to_my_account_transfer_widget =QWidget()
+        saving_to_my_account_transfer_label = QLabel("<html><p> Saving To Account Transfer<p></html>", saving_to_my_account_transfer_widget)
+        saving_to_my_account_transfer_label.setGeometry(350, 50, 600 , 80)
+        saving_to_my_account_transfer_label.setStyleSheet("background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")    
+        saving_to_my_account_transfer_label.setAlignment(Qt.AlignCenter)
+
+        
+        self.sender1_acc_input = QLineEdit(self)
+        self.sender1_acc_input.setGeometry(50, 200, 350, 50)
+        self.sender1_acc_input.setPlaceholderText("Enter Account Number")
+        self.sender1_acc_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+        self.sender1_acc_input.setClearButtonEnabled(True)
+        self.sender1_acc_input.setParent(saving_to_my_account_transfer_widget)
+
+        self.transfer_amount1_input = QLineEdit(self)
+        self.transfer_amount1_input.setGeometry(50, 280, 350, 50)
+        self.transfer_amount1_input.setPlaceholderText("Amount to Transfer")
+        self.transfer_amount1_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+        self.transfer_amount1_input.setClearButtonEnabled(True)
+        self.transfer_amount1_input.setParent(saving_to_my_account_transfer_widget)
+
+        self.transfer1_button = QPushButton("Transfer", self)
+        transfer1_button_width = 300
+        transfer1_button_x = (self.width() - transfer1_button_width) // 3
+        self.transfer1_button.setGeometry(transfer1_button_x, 450, transfer1_button_width, 70)
+        self.transfer1_button.setStyleSheet("""
+                                      QPushButton {
+                                           background-color: blue;
+                                           font-size: 18pt;
+                                           border-radius: 35px;
+                                                  }
+                                           QPushButton:hover {
+                                           background-color: #333333;
+                                                             }
+                                           """)
+      #  self.transfer_button.clicked.connect(self.perform_own_account_transfer)
+        self.transfer1_button.setParent(saving_to_my_account_transfer_widget)
+
+        self.transfer1_notify_label = QLabel("", self)
+        self.transfer1_notify_label.setGeometry(50, 550, 600, 50)
+        self.transfer1_notify_label.setStyleSheet("color: red; font-size: 25px;")
+        self.transfer1_notify_label.setParent(saving_to_my_account_transfer_widget)
+
+       
+        self.stacked_widget.addWidget(saving_to_my_account_transfer_widget)
+
+    def investment_to_my_account_transfer(self):
+
+
+        investment_to_my_account_transfer_widget =QWidget()
+        investment_to_my_account_transfer_label = QLabel("<html><p> Investment To Account Transfer<p></html>", investment_to_my_account_transfer_widget)
+        investment_to_my_account_transfer_label.setGeometry(350, 50, 600 , 80)
+        investment_to_my_account_transfer_label.setStyleSheet("background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")    
+        investment_to_my_account_transfer_label.setAlignment(Qt.AlignCenter)
+
+        
+        self.sender2_acc_input = QLineEdit(self)
+        self.sender2_acc_input.setGeometry(50, 200, 350, 50)
+        self.sender2_acc_input.setPlaceholderText("Enter Account Number")
+        self.sender2_acc_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+        self.sender2_acc_input.setClearButtonEnabled(True)
+        self.sender2_acc_input.setParent(investment_to_my_account_transfer_widget)
+
+        self.transfer_amount2_input = QLineEdit(self)
+        self.transfer_amount2_input.setGeometry(50, 280, 350, 50)
+        self.transfer_amount2_input.setPlaceholderText("Amount to Transfer")
+        self.transfer_amount2_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+        self.transfer_amount2_input.setClearButtonEnabled(True)
+        self.transfer_amount2_input.setParent(investment_to_my_account_transfer_widget)
+
+        self.transfer2_button = QPushButton("Transfer", self)
+        transfer2_button_width = 300
+        transfer2_button_x = (self.width() - transfer2_button_width) // 3
+        self.transfer2_button.setGeometry(transfer2_button_x, 450, transfer2_button_width, 70)
+        self.transfer2_button.setStyleSheet("""
+                                      QPushButton {
+                                           background-color: blue;
+                                           font-size: 18pt;
+                                           border-radius: 35px;
+                                                  }
+                                           QPushButton:hover {
+                                           background-color: #333333;
+                                                             }
+                                           """)
+      #  self.transfer_button.clicked.connect(self.perform_own_account_transfer)
+        self.transfer2_button.setParent(investment_to_my_account_transfer_widget)
+
+        self.transfer2_notify_label = QLabel("", self)
+        self.transfer2_notify_label.setGeometry(50, 550, 600, 50)
+        self.transfer2_notify_label.setStyleSheet("color: red; font-size: 25px;")
+        self.transfer2_notify_label.setParent(investment_to_my_account_transfer_widget)
+
+        self.stacked_widget.addWidget(investment_to_my_account_transfer_widget)
+
+
+    def mobile_wallet_to_account_transfer(self):
+
+
+    
+        mobile_wallet_to_account_transfer_widget =QWidget()
+        mobile_wallet_to_account_transfer_label = QLabel("<html><p> Mobile Wallet To Account Transfer<p></html>", mobile_wallet_to_account_transfer_widget)
+        mobile_wallet_to_account_transfer_label.setGeometry(350, 50, 600 , 80)
+        mobile_wallet_to_account_transfer_label.setStyleSheet("background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")    
+        mobile_wallet_to_account_transfer_label.setAlignment(Qt.AlignCenter)
+
+        
+        self.sender3_acc_input = QLineEdit(self)
+        self.sender3_acc_input.setGeometry(50, 200, 350, 50)
+        self.sender3_acc_input.setPlaceholderText("Enter Mobile Number")
+        self.sender3_acc_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+        self.sender3_acc_input.setClearButtonEnabled(True)
+        self.sender3_acc_input.setParent(mobile_wallet_to_account_transfer_widget)
+
+        self.transfer_amount3_input = QLineEdit(self)
+        self.transfer_amount3_input.setGeometry(50, 280, 350, 50)
+        self.transfer_amount3_input.setPlaceholderText("Amount to Transfer")
+        self.transfer_amount3_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+        self.transfer_amount3_input.setClearButtonEnabled(True)
+        self.transfer_amount3_input.setParent(mobile_wallet_to_account_transfer_widget)
+
+        self.transfer3_button = QPushButton("Transfer", self)
+        transfer3_button_width = 300
+        transfer3_button_x = (self.width() - transfer3_button_width) // 3
+        self.transfer3_button.setGeometry(transfer3_button_x, 450, transfer3_button_width, 70)
+        self.transfer3_button.setStyleSheet("""
+                                      QPushButton {
+                                           background-color: blue;
+                                           font-size: 18pt;
+                                           border-radius: 35px;
+                                                  }
+                                           QPushButton:hover {
+                                           background-color: #333333;
+                                                             }
+                                           """)
+      #  self.transfer_button.clicked.connect(self.perform_own_account_transfer)
+        self.transfer3_button.setParent(mobile_wallet_to_account_transfer_widget)
+
+        self.transfer3_notify_label = QLabel("", self)
+        self.transfer3_notify_label.setGeometry(50, 550, 600, 50)
+        self.transfer3_notify_label.setStyleSheet("color: red; font-size: 25px;")
+        self.transfer3_notify_label.setParent(mobile_wallet_to_account_transfer_widget)
+
+        self.stacked_widget.addWidget(mobile_wallet_to_account_transfer_widget)
+    
+
+     
+    
+
 
     def another_account_page(self):
         another_account_widget =QWidget()
@@ -1434,11 +3646,53 @@ class Main1Window(QMainWindow):
         password_button.setParent(profile_widget)
 
 
+
+                    
+        change_pin_button = QPushButton(self)
+        change_pin_button.setGeometry(50, 360, 500, 50)
+                         
+        # Set the icon size explicitly
+        icon_size = QSize(30, 30)  # Adjust the size as needed
+        change_pin_button.setIconSize(icon_size)
+
+         # Set the icon position to the left side of the button
+        change_pin_button.setStyleSheet("""
+                        QPushButton {
+                                     background-color: white;
+                                     font-size: 12pt; 
+                                     border-radius: 35px;
+                                     text-align: left;  /* Align text to the left */
+                                     padding-left: 40px;  /* Space for the icon */
+                                               
+                                     }          
+                        
+                        QPushButton::icon {
+                                     padding-right: 15px;  /* Space between icon and text */
+                                    }
+                        QPushButton:hover{
+                                     background-color:#333333
+                                    } 
+                                    
+                                                """)
+
+# Set the icon to the left of the button text
+        icon = QIcon("padlock.png")
+        change_pin_button.setIcon(icon)
+
+# Set the text for the button
+        change_pin_button.setText(" | Change Pin ")
+
+        change_pin_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(24))
+
+        change_pin_button.setParent(profile_widget)
+
+
+
         # Notification 
 
         notification_button = QPushButton(self)
-        notification_button.setGeometry(50, 360, 500, 50)
-        icon = QIcon("padlock.png")                  
+        notification_button.setGeometry(50, 440, 500, 50)
+                   
         # Set the icon size explicitly
         icon_size = QSize(30, 30)  # Adjust the size as needed
         notification_button.setIconSize(icon_size)
@@ -1475,6 +3729,530 @@ class Main1Window(QMainWindow):
 
 
         self.stacked_widget.addWidget(profile_widget)
+
+    def change_pin_page(self, db, current_user_email, Phonenumber):
+        self.current_user_email = current_user_email
+        self.phone_number = Phonenumber
+        self.db = db
+
+        change_pin_widget = QWidget()
+        change_pin_label = QLabel("<html><p> Change pin <p></html>", change_pin_widget)
+        change_pin_label.setGeometry( 350, 50, 600 , 80)
+        change_pin_label.setStyleSheet( "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
+        change_pin_label.setAlignment(Qt.AlignCenter)
+
+
+
+
+
+        self.current_pin_input = QLineEdit(self)
+        self.current_pin_input.setGeometry(50, 200, 350, 50)
+        # Set placeholder text for the password input field
+        self.current_pin_input.setPlaceholderText("Enter Current Pin")
+        # Appply styling to the password input field
+        self.current_pin_input.setStyleSheet("border-radius: 25; padding : 10px; font-size: 16px; ")
+        # Enable the clear button to the clear input
+        self.current_pin_input.setClearButtonEnabled(True)
+        # Set an icon for the input field
+        icon = QIcon("padlock.png")
+        self.current_pin_input.addAction(icon, QLineEdit.LeadingPosition)
+        self.current_pin_input.setEchoMode(QLineEdit.Password)
+        self.current_pin_input.editingFinished.connect(self.reset_current_pin_input_style)
+        self.current_pin_input.setParent(change_pin_widget)
+
+
+        # Create checkbox to toggle password visibility
+        self.show_current_pin_checkbox = QCheckBox("Show Pin", self)
+        self.show_current_pin_checkbox.setStyleSheet("color: black; font-size : 16px")
+        self.show_current_pin_checkbox.setGeometry(50, 247, 150 , 30)
+        self.show_current_pin_checkbox.stateChanged.connect(self.toggle_current_pin_visibility)
+
+        self.show_current_pin_checkbox.setParent(change_pin_widget)
+
+
+
+
+          # Create a line edit for password input field
+        self.new_update_pin_input = QLineEdit(self)
+        self.new_update_pin_input.setGeometry(50, 300, 350, 50)
+        # Set placeholder text for the password input field
+        self.new_update_pin_input.setPlaceholderText("Enter New Pin")
+        # Appply styling to the password input field
+        self.new_update_pin_input.setStyleSheet("border-radius: 25; padding : 10px; font-size: 16px; ")
+        # Enable the clear button to the clear input
+        self.new_update_pin_input.setClearButtonEnabled(True)
+        # Set an icon for the input field
+        icon = QIcon("padlock.png")
+        self.new_update_pin_input.addAction(icon, QLineEdit.LeadingPosition)
+        self.new_update_pin_input.setEchoMode(QLineEdit.Password)
+        self.new_update_pin_input.textChanged.connect(self.validate_new_update_pin)
+        self.new_update_pin_input.editingFinished.connect(self.reset_new_update_pin_input_style)
+        self.new_update_pin_input.setParent(change_pin_widget)
+
+
+        # Create checkbox to toggle password visibility
+        self.show_new_update_pin_checkbox = QCheckBox("Show Pin", self)
+        self.show_new_update_pin_checkbox.setStyleSheet("color: black; font-size : 16px")
+        self.show_new_update_pin_checkbox.setGeometry(50, 347, 150 , 30)
+        self.show_new_update_pin_checkbox.stateChanged.connect(self.toggle_new_update_pin_visibility)
+
+        self.show_new_update_pin_checkbox.setParent(change_pin_widget)
+
+
+            # Create a line edit for password input field
+        self.confirm_update_pin_input = QLineEdit(self)
+        self.confirm_update_pin_input.setGeometry(50, 400, 350, 50)
+        # Set placeholder text for the password input field
+        self.confirm_update_pin_input.setPlaceholderText("Confirm New Pin")
+        # Appply styling to the password input field
+        self.confirm_update_pin_input.setStyleSheet("border-radius: 25; padding : 10px; font-size: 16px; ")
+        # Enable the clear button to the clear input
+        self.confirm_update_pin_input.setClearButtonEnabled(True)
+        # Set an icon for the input field
+        icon = QIcon("padlock.png")
+        self.confirm_update_pin_input.addAction(icon, QLineEdit.LeadingPosition)
+        self.confirm_update_pin_input.setEchoMode(QLineEdit.Password)
+        self.confirm_update_pin_input.textChanged.connect(self.validate_confirm_update_pin)
+        self.confirm_update_pin_input.editingFinished.connect(self.reset_confirm_update_pin_input_style)
+        self.confirm_update_pin_input.setParent(change_pin_widget)
+
+
+        # Create checkbox to toggle password visibility
+        self.show_confirm_update_pin_checkbox = QCheckBox("Show Pin", self)
+        self.show_confirm_update_pin_checkbox.setStyleSheet("color: black; font-size : 16px")
+        self.show_confirm_update_pin_checkbox.setGeometry(50, 447, 150 , 30)
+        self.show_confirm_update_pin_checkbox.stateChanged.connect(self.toggle_confirm_update_pin_visibility)
+
+        self.show_confirm_update_pin_checkbox.setParent(change_pin_widget)
+
+           # Create QLabel for notification messages
+        self.pin_notification_label = QLabel("", self)
+        self.pin_notification_label.setGeometry(50, 520, 650, 50)
+        self.pin_notification_label.setStyleSheet("color: red; font-size: 25px;")
+        self.pin_notification_label.setParent(change_pin_widget)
+
+
+
+        self.save_and_submit_button3 = QPushButton("Save and Submit", self)
+        button_width = 300  # Adjust the width of the button as needed
+        button_x = (self.width() - button_width) // 3  # Center the button horizontally
+        self.save_and_submit_button3.setGeometry(button_x, 700, button_width, 70)
+        self.save_and_submit_button3.setStyleSheet("""
+                     QPushButton {
+                     background-color: blue;
+                      font-size: 18pt; 
+                      border-radius: 35px;
+                      }
+                       QPushButton:hover{
+                          background-color:brown
+                      }
+                  """)
+        
+        self.save_and_submit_button3.clicked.connect(self.save_and_submit3)
+        self.save_and_submit_button3.setParent(change_pin_widget)
+
+
+
+        
+# Inside your initialization method or where you create the widgets
+        self.regenerate_otp_button3 = QPushButton(self)
+        self.regenerate_otp_button3.setIcon(QIcon("refresh-page-option.png"))  # Set the icon for the button
+        self.regenerate_otp_button3.setToolTip("Regenerate OTP")  # Optional tooltip for the button
+        # Adjust the position and size of the button as needed
+        self.regenerate_otp_button3.setGeometry(760, 335, 40, 40)
+        self.regenerate_otp_button3.setStyleSheet("""
+                     QPushButton {
+                     background-color: blue;
+                      font-size: 18pt; 
+                      border-radius: 35px;
+                      }
+                       QPushButton:hover{
+                          background-color:#333333
+                      }
+                  """)
+        self.regenerate_otp_button3.hide()
+        self.regenerate_otp_button3.clicked.connect(self.generate_otp3)  # Connect the clicked signal
+        self.regenerate_otp_button3.setParent(change_pin_widget)
+        
+     
+
+        self.otp_generated3 = False
+        self.otp3 = ""
+
+        #Create a QLabel for the information display 
+        self.info_label3_widget = QWidget()
+        self.info_label3 = QLabel("<html><p>Enter the OTP....You have 1 minutes<p></html> ", self.info_label3_widget)
+        self.info_label3.setAlignment(Qt.AlignCenter)
+        self.info_label3.setGeometry(400,200,400,40)
+        self.info_label3.setStyleSheet("background-color: black; color: white; padding: 10px; border-radius: 100px; font-size: 10pt;")
+        self.info_label3.hide() # Hide the info label initially
+        self.info_label3.setParent(change_pin_widget)
+
+        #create a container widget for the otp input
+        self.container3 = QWidget()
+        self.container3.setGeometry(400,235,400,100)
+        self.container3.setStyleSheet("background-color: blue; border-radius: 5px; padding: 5px;")
+        self.container3.hide()
+        self.container3.setParent(change_pin_widget)
+
+        # Create a QVBoxLayout for the container
+        self.container_layout3 = QVBoxLayout(self.container3)
+        self.container_layout3.setContentsMargins(0, 0, 0, 0)  # No margins
+       # self.container_layout.setParent(email_widget)
+
+
+       
+
+        #Create a QHBoxlayout for the OTP boxes 
+        self.layout = QHBoxLayout()
+        self.layout.setContentsMargins(10,10,10,10) #set Margins
+      #  self.layout.setParent(email_widget)
+
+        #Create Six QLineEDIT Boxes for the otp
+        self.otp3_boxes = []
+        for _ in range(6):
+            otp3_box = QLineEdit(self.container3)
+            otp3_box.setFixedSize(50, 50)  # Set fixed size for each box
+            otp3_box.setMaxLength(1)  # Limit input to one character
+            otp3_box.setAlignment(Qt.AlignCenter)  # Center align text
+            otp3_box.setStyleSheet(
+                "background-color: white; border: 1px solid black; border-radius: 10px; font-size: 18px;")
+            self.layout.addWidget(otp3_box)
+            self.otp3_boxes.append(otp3_box)
+             # Connect textChanged signal to handle_otp_input slot
+            otp3_box.textChanged.connect(self.handle_otp_input3)
+
+
+        self.container_layout3.addLayout(self.layout)
+
+
+           # Create a QLabel for time remaining display (initially hidden)
+        self.timer_label3_widget = QWidget()
+        self.timer_label3 = QLabel("<html><p>Time remaining....180 seconds<p></html> ", self.timer_label3_widget)
+        self.timer_label3.setAlignment(Qt.AlignCenter)
+        self.timer_label3.setGeometry(400,335,360,40)
+        self.timer_label3.setStyleSheet("background-color: black; color: white; padding: 10px; border-radius: 100px; font-size: 10pt;")
+        self.timer_label3.hide()
+        self.timer_label3.setParent(change_pin_widget)
+
+
+          #  self.save_and_submit_button.clicked.connect(self.save_user_details)
+        self.stacked_widget.addWidget(change_pin_widget)
+
+        
+      
+
+
+    def handle_otp_input3(self, text):
+        current_box3 = self.sender()  # Get the sender QLineEdit
+        index = self.otp3_boxes.index(current_box3)
+        if len(text) == 1 and index < len(self.otp3_boxes) - 1:
+            self.otp3_boxes[index + 1].setFocus()  # Move focus to the next box
+        elif len(text) == 1 and index == len(self.otp3_boxes) - 1:
+            self.check_otp3()
+               
+
+    def update_timer3(self):
+        self.time_left -= 1
+        self.timer_label3.setText(f"Time remaining: {self.time_left} seconds")
+        if self.time_left == 0:
+            self.timer.stop()
+            self.clear_otp_input3()
+            self.otp_generated3
+            self.otp_generated3 = False
+            QMessageBox.warning(self, "OTP Expired", "Your OTP has expired. Please request a new OTP.")
+         
+                
+
+
+
+    
+
+
+    def save_and_submit3(self):
+        email = self.current_user_email
+        number = self.phone_number
+
+        current_pin = self.current_pin_input.text()
+        new_update_pin = self.new_update_pin_input.text()
+        confirm_update_pin = self.confirm_update_pin_input.text()
+        entered_otp = self.otp3 # Get the entered OTP
+
+        PIN = self.get_pin()
+
+
+
+        
+        hash_pin = hashlib.sha256(current_pin.encode()).hexdigest()
+ 
+    
+
+ 
+        if hash_pin != PIN:
+            self.pin_notification_label.setText("Current Pin does not match.")
+            self.pin_notification_label.show()
+           
+
+            return
+        
+
+        if current_pin == "":
+            self.pin_notification_label.setText("Please Enter Current Pin.")
+            self.pin_notification_label.show()
+            
+            return
+
+        if new_update_pin == "":
+            self.pin_notification_label.setText("Please Enter New Pin.")
+            self.pin_notification_label.show()
+           
+            return  
+        if len(new_update_pin) != 4 :
+            QMessageBox.warning(self, "Invalid PIN", "PIN must be exactly 4 digits.")
+            return
+
+
+        if confirm_update_pin == "":
+            self.pin_notification_label.setText("Please Confirm Pin.")
+            self.pin_notification_label.show()
+            
+            return  
+        
+        if len(confirm_update_pin) != 4:
+            QMessageBox.warning(self, "Invalid PIN", "Confirmation PIN must be exactly 4 digits.")
+            return
+        
+        if new_update_pin != confirm_update_pin:
+           self.pin_notification_label.setText("New Pin and Confirm Pin do not match.")
+           self.pin_notification_label.show()
+           return
+
+        if entered_otp =="":
+            self.generate_otp3()
+            self.otp_generated3 = True
+            self.info_label3.show()
+            self.container3.show()
+            self.timer_label3.show()
+            self.regenerate_otp_button3.show()
+            self.pin_notification_label.setText("")
+            self.current_pin_input.hide()
+            self.current_pin_input.clear()
+            self.show_current_pin_checkbox.hide()
+            self.show_new_update_pin_checkbox.hide()
+            self.show_confirm_update_pin_checkbox.hide()
+            self.new_update_pin_input.hide()
+            self.new_update_pin_input.clear()
+            self.confirm_update_pin_input.clear()
+            self.confirm_update_pin_input.hide()
+            self.start_timer3()
+           
+          
+
+        self.pin_notification_label.hide()
+
+
+
+    def get_pin(self):
+        email = self.current_user_email
+             # Fetch and return the PIN from your database based on the user's email
+        cursor = self.db.cursor()
+        cursor.execute("SELECT PIN FROM my_accountdb WHERE Email = %s", (email,))
+        result = cursor.fetchone()
+        cursor.close()
+
+        return result[0] if result else None  # Assuming PIN is the first column in the result
+
+
+        
+     
+    def start_timer3(self):
+
+         # Check if timer is already running, stop it first
+        if hasattr(self, 'timer') and self.timer.isActive():
+            self.timer.stop()
+           # Initialize timer
+        self.time_left = 60 # 3 minutes (180 seconds)
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_timer3)
+        self.timer.start(1000)  # Update timer every second
+
+    def update_database3(self):
+
+        new_update_pin = self.new_update_pin_input.text()
+            
+        email = self.current_user_email
+        hash_updated_pin = hashlib.sha256(new_update_pin.encode()).hexdigest()
+
+        cursor = self.db.cursor()
+        sql = "UPDATE  my_accountdb SET PIN = %s WHERE Email = %s"
+        cursor.execute (sql, (hash_updated_pin, email,))
+        self.db.commit()
+        cursor.close()
+        print(hash_updated_pin + " Updated pin")
+
+        QMessageBox.information(self, "Pin Changed", "You have successfully changed your Pin.")
+
+        self.main_window = MainWindow()
+        self.main_window.show()
+        self.close() 
+
+    
+           
+          
+ 
+
+
+
+        
+       
+    def generate_otp3(self):
+        email = self.current_user_email
+        number = self.phone_number
+        self.otp3 = str(random.randint(100000, 999999))
+        print(f"Sending OTP to {email}")
+        print(f"""Your Verification code: {self.otp3}
+For security reasons, do not share
+this code with anyone. Enter this code 
+to successfully change your Pin""")  # Print the generated OTP
+        print(f"Sending OTP to {number}")
+        print(f"""Your Verification code: {self.otp3}
+For security reasons, do not share
+this code with anyone. Enter this code 
+to successfully change your Pin""") # Print the generated OTP
+        self.start_timer3()
+
+ 
+
+    def clear_otp_input3(self):
+        for otp_box in self.otp3_boxes:
+            otp_box.clear()  
+
+    def check_otp3(self):
+        entered_otp = "".join(box.text() for box in self.otp3_boxes)
+
+        if self.time_left <= 0:
+           QMessageBox.warning(self, "OTP Expired", "Your OTP has expired. Please request a new OTP.")
+           self.clear_otp_input3()
+           self.otp_generated3 = False
+           return
+           
+        if entered_otp == self.otp3:
+            QMessageBox.information(self, "Success", "OTP Matched Successfully")
+            self.clear_otp_input3()
+            self.generate_otp3 = False
+            self.info_label3.hide()
+            self.container3.hide()
+            self.timer_label3.hide()
+            self.regenerate_otp_button3.hide()
+            self.timer.stop() 
+            self.update_database3()
+          
+           
+
+
+        else:
+            QMessageBox.warning(self, "Error", "Invalid OTP, Please try again")
+            self.clear_otp_input3()
+            self.otp_generated3 = False    
+
+
+     
+       
+
+        
+
+    def toggle_current_pin_visibility(self, state):
+        if state == Qt.Checked:
+            # Show pin
+            self.current_pin_input.setEchoMode(QLineEdit.Normal)
+        else:
+            # Hide pin
+            self.current_pin_input.setEchoMode(QLineEdit.Password) 
+
+    def toggle_new_update_pin_visibility(self, state):
+        if state == Qt.Checked:
+            # Show pin
+            self.new_update_pin_input.setEchoMode(QLineEdit.Normal)
+        else:
+            # Hide pin
+            self.new_update_pin_input.setEchoMode(QLineEdit.Password)
+
+    def toggle_confirm_update_pin_visibility(self, state):
+        if state == Qt.Checked:
+            # Show pin
+            self.confirm_new_pin_input.setEchoMode(QLineEdit.Normal)
+        else:
+            # Hide pin
+            self.confirm_new_pin_input.setEchoMode(QLineEdit.Password)
+                    
+            
+            
+
+        
+    @pyqtSlot()
+    def reset_current_pin_input_style(self):
+        # Reset the stylesheet when the user leaves the input field
+        self.current_pin_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+     
+    @pyqtSlot()
+
+    def reset_new_update_pin_input_style(self):
+        # Reset the stylesheet when the user leaves the input field
+        self.new_update_pin_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+    
+    @pyqtSlot()
+
+    def reset_confirm_update_pin_input_style(self):
+        # Reset the stylesheet when the user leaves the input field
+        self.confirm_update_pin_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+
+
+    def validate_new_update_pin(self,text):
+        new_update_pin_pattern = r'^[0-9]{4}$'  # Assuming a 10-digit phone number
+
+        new_update_pin_regex = re.compile(new_update_pin_pattern)
+
+        if new_update_pin_regex.match(text):
+            # Valid email format
+            self.new_update_pin_input.setStyleSheet("border-radius: 25px; border: 2px solid green;")
+        else:
+            # Invalid email format
+            self.new_update_pin_input.setStyleSheet("border-radius: 25px;  border: 5px solid red;")
+
+            # Set font size back to normal
+            font = self.new_update_pin_input.font()
+            font.setPointSize(10)  # Adjust the font size as needed
+            self.new_update_pin_input.setFont(font)  
+            
+    def validate_confirm_update_pin(self,text):
+            confirm_update_pin_pattern = r'^[0-9]{4}$'  # Assuming a 10-digit phone number
+
+            confirm_update_pin_regex = re.compile(confirm_update_pin_pattern)
+
+            if confirm_update_pin_regex.match(text):
+            # Valid email format
+                self.confirm_update_pin_input.setStyleSheet("border-radius: 25px; border: 2px solid green;")
+            else:
+            # Invalid email format
+                self.confirm_update_pin_input.setStyleSheet("border-radius: 25px;  border: 5px solid red;")
+
+            # Set font size back to normal
+                font = self.confirm_update_pin_input.font()
+                font.setPointSize(10)  # Adjust the font size as needed
+                self.confirm_update_pin_input.setFont(font)   
+          
+    
+
+
+
+
+
+
+
+
+
+       
+
 
     def notification_page(self):
         notification_widget = QWidget()
@@ -1837,6 +4615,9 @@ class Main1Window(QMainWindow):
             self.regenerate_otp_button.show()
             self.notification_label.setText("")
             self.email_input.hide()
+            self.email_input.clear()
+            self.new_email_input.clear()
+            self.confirm_email_input.clear()
             self.new_email_input.hide()
             self.confirm_email_input.hide()
             self.start_timer()
@@ -1885,8 +4666,20 @@ class Main1Window(QMainWindow):
                 action = f"Changed Email from {email} to {new_email}"
                 cursor.execute(sql_update_edit, (new_email, action))
                 self.db.commit()
-                    
+
+                sql = "UPDATE my_accountdb SET Email = %s WHERE Email = %s"
+                cursor.execute(sql, (new_email, email))
+
+            
                 self.db.commit()
+
+                sql = "UPDATE saving_accountdb SET Email = %s WHERE Email = %s"
+                cursor.execute(sql, (new_email, email))
+
+                
+                self.db.commit()
+                    
+                    
                 
 
 
@@ -2176,7 +4969,7 @@ to successfully change your Email Address""")  # Print the generated OTP
         number = self.number_input.text()
         new_number = self.new_number_input.text()
         confirm_numnber = self.confirm_number_input.text()
-        entered_otp = self.otp # Get the entered OTP
+        entered_otp = self.otp1 # Get the entered OTP
  
         if number != self.phone_number:
             self.notification_label1.setText("Current Number does not match.")
@@ -2217,6 +5010,9 @@ to successfully change your Email Address""")  # Print the generated OTP
             self.regenerate_otp_button1.show()
             self.notification_label1.setText("")
             self.number_input.hide()
+            self.number_input.clear()
+            self.new_number_input.clear()
+            self.confirm_number_input.clear()
             self.new_number_input.hide()
             self.confirm_number_input.hide()
             self.start_timer1()
@@ -2295,7 +5091,7 @@ to successfully change your Email Address""")  # Print the generated OTP
         print(f"""Your Verification code: {self.otp1}
 For security reasons, do not share
 this code with anyone. Enter this code 
-to successfully change your Email Address""")  # Print the generated OTP
+to successfully change your Phone Number""")  # Print the generated OTP
         self.start_timer1()
 
     def send_otp1(self,number):
@@ -2798,6 +5594,9 @@ to successfully change your Email Address""")  # Print the generated OTP
             self.regenerate_otp_button2.show()
             self.notification_label2.setText("")
             self.password_input.hide()
+            self.password_input.clear()
+            self.new_password_input.clear()
+            self.confirm_password_input.clear()
             self.new_password_input.hide()
             self.confirm_password_input.hide()
             self.show_password_checkbox1.hide()
@@ -2844,7 +5643,7 @@ to successfully change your Email Address""")  # Print the generated OTP
                     
             self.db.commit()
             sql_update_edit = "INSERT INTO edit_db (password, action3, hashed_password) VALUES (%s, %s, %s)"
-            action = f"Changed Phone Number from {password} to {new_password}"
+            action = f"Changed Password from {password} to {new_password}"
             cursor.execute(sql_update_edit, (new_password, action, hash_password))
             self.db.commit()
             cursor.close()
@@ -2874,12 +5673,12 @@ to successfully change your Email Address""")  # Print the generated OTP
         print(f"""Your Verification code: {self.otp2}
 For security reasons, do not share
 this code with anyone. Enter this code 
-to successfully change your Email Address""") 
+to successfully change your Password""") 
         print(f"Sending OTP to {number}")
         print(f"""Your Verification code: {self.otp2}
 For security reasons, do not share
 this code with anyone. Enter this code 
-to successfully change your Email Address""") # Print the generated OTP
+to successfully change your Password""") # Print the generated OTP
         self.start_timer2()
 
     def send_otp2(self,number):
@@ -3026,9 +5825,25 @@ to successfully change your Email Address""") # Print the generated OTP
         self.new_password_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
 
 
-
+    
     
 
+    def handle_page_change(self, index):
+        print(index)
+        # When the current page changes, hide specific widgets as needed
+        if index != 22:
+            # Hide specific widgets in page 2 when leaving that page
+            self.acc_label.hide()    
+            
+        if index != 18:
+            self.first_name_input.clear()
+            self.last_name_input.clear()
+            self.goal_input.clear()
+            self.notify_label.hide()
+        if index != 25:
+            
+            self.reset_ui_for_new_otp()   
+    
 
 
 
