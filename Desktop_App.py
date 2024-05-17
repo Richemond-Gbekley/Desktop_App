@@ -9,6 +9,7 @@ import time
 import mysql.connector
 from datetime import datetime, timedelta
 from PyQt5.QtCore import pyqtSlot
+from decimal import Decimal
 from PyQt5 import QtCore
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QIcon
@@ -271,7 +272,7 @@ class LoginWindow(QMainWindow):
                 # Assuming the login is successful and you have retrieved user details
                 Firstname, Lastname, Phonenumber = self.get_user_details(email)
                 self.log_login(Firstname, Lastname, email)
-                self.my_accountdb(Firstname, Lastname, email)
+                self.my_accountdb(Firstname, Lastname,  Phonenumber, email)
                 self.current_user_email = email #Sets the session variable
                 self.current_password = hash_password
                 cursor.close()
@@ -321,7 +322,7 @@ class LoginWindow(QMainWindow):
         except mysql.connector.Error as e:
             QMessageBox.critical(self, "Database Error", f"Error logging login: {e}")
 
-    def my_accountdb(self, Firstname, Lastname,email):
+    def my_accountdb(self, Firstname, Lastname, Phonenumber,email):
         try:
             cursor = self.db.cursor()
               # Execute SELECT query to check login credentials
@@ -337,8 +338,8 @@ class LoginWindow(QMainWindow):
                 return
             
             else:
-                sql1 = "INSERT INTO my_accountdb (Firstname, Lastname, Email, Balance) VALUES (%s,%s, %s, %s)"
-                values = (Firstname, Lastname, email, Balance)
+                sql1 = "INSERT INTO my_accountdb (Email, Firstname, Lastname, Balance, Phonenumber) VALUES (%s,%s, %s, %s,%s)"
+                values = (email, Firstname, Lastname,Balance,Phonenumber,)
                 cursor.execute(sql1, values)
                 self.db.commit()
                 cursor.close() 
@@ -472,7 +473,7 @@ class Main1Window(QMainWindow):
         self.mobile_wallet_to_account_transfer() #30
         self.transfer_to_my_saving_account() #31
         self.transfer_to_investment_account() #32
-        self.transfer_to_mobile_wallet() #33
+        
         self.stacked_widget.currentChanged.connect(self.handle_page_change)
 
       
@@ -1712,7 +1713,7 @@ class Main1Window(QMainWindow):
 
         #Create a QLabel for the information display 
         self.info_label4_widget = QWidget()
-        self.info_label4 = QLabel("<html><p>Enter the OTP....You have 1 minutes<p></html> ", self.info_label1_widget)
+        self.info_label4 = QLabel("<html><p>Enter the OTP....You have 1 minutes<p></html> ", self.info_label4_widget)
         self.info_label4.setAlignment(Qt.AlignCenter)
         self.info_label4.setGeometry(550,200,400,40)
         self.info_label4.setStyleSheet("background-color: black; color: white; padding: 10px; border-radius: 100px; font-size: 10pt;")
@@ -1759,7 +1760,7 @@ class Main1Window(QMainWindow):
 
            # Create a QLabel for time remaining display (initially hidden)
         self.timer_label4_widget = QWidget()
-        self.timer_label4 = QLabel("<html><p>Time remaining....60 seconds<p></html> ", self.timer_label1_widget)
+        self.timer_label4 = QLabel("<html><p>Time remaining....60 seconds<p></html> ", self.timer_label4_widget)
         self.timer_label4.setAlignment(Qt.AlignCenter)
         self.timer_label4.setGeometry(550,335,360,40)
         self.timer_label4.setStyleSheet("background-color: black; color: white; padding: 10px; border-radius: 100px; font-size: 10pt;")
@@ -1815,14 +1816,14 @@ class Main1Window(QMainWindow):
           # Reset UI and state for a new OTP process if OTP is already generated
         if self.otp_generated4:
             self.reset_ui_for_new_otp()
-        self.calculate_and_update_balance(account_number)    
+        self.calculate_and_update_balance() 
 
 
       
 
      
 
-        if not self.otp_generated4:
+        if account_number != "" :
             self.generate_otp4()
             self.otp_generated4 = True
             self.info_label4.show()
@@ -2637,7 +2638,7 @@ to successfully change your Email Address""") # Print the generated OTP
         own_account_button.setIcon(icon)
 
 # Set the text for the button
-        own_account_button.setText(" | To Own Account")
+        own_account_button.setText(" | To Own Account(s)")
 
         own_account_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(13))
         own_account_button.setParent(transfer_widget)
@@ -2676,7 +2677,7 @@ to successfully change your Email Address""") # Print the generated OTP
         another_account_button.setIcon(icon)
 
 # Set the text for the button
-        another_account_button.setText(" | To other Account")
+        another_account_button.setText(" | To Inter Account")
 
         another_account_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(14))
         another_account_button.setParent(transfer_widget)
@@ -2715,7 +2716,7 @@ to successfully change your Email Address""") # Print the generated OTP
         wallet_button.setIcon(icon)
 
 # Set the text for the button
-        wallet_button.setText(" | To Wallet")
+        wallet_button.setText(" | Mobile Wallet")
 
         wallet_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(15))
         wallet_button.setParent(transfer_widget)
@@ -2728,6 +2729,10 @@ to successfully change your Email Address""") # Print the generated OTP
 
 
         self.stacked_widget.addWidget(transfer_widget)
+
+   
+
+    
 
     def own_account_page(self):
         own_account_widget =QWidget()
@@ -2777,7 +2782,7 @@ to successfully change your Email Address""") # Print the generated OTP
         my_account_button.setIcon(icon)
 
 # Set the text for the button
-        my_account_button.setText(" | My Account")
+        my_account_button.setText(" | Wallet")
 
         my_account_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(27))
 
@@ -2862,47 +2867,6 @@ to successfully change your Email Address""") # Print the generated OTP
         from_investment_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(32))
 
         from_investment_button.setParent(own_account_widget)
-
-        mobile_wallet_button = QPushButton(self)
-        mobile_wallet_button.setGeometry(50, 490, 500, 50)
-                         
-        # Set the icon size explicitly
-        icon_size = QSize(30, 30)  # Adjust the size as needed
-        mobile_wallet_button.setIconSize(icon_size)
-         # Set the icon position to the left side of the button
-        mobile_wallet_button.setStyleSheet("""
-                        QPushButton {
-                                     background-color: white;
-                                     font-size: 12pt; 
-                                     border-radius: 35px;
-                                     text-align: left;  /* Align text to the left */
-                                     padding-left: 40px;  /* Space for the icon */
-                                               
-                                     }          
-                        
-                        QPushButton::icon {
-                                     padding-right: 15px;  /* Space between icon and text */
-                                    }
-                        QPushButton:hover{
-                                     background-color:#333333
-                                    } 
-                                    
-                                                """)
-
-# Set the icon to the left of the button text
-        icon = QIcon("money.png")
-        mobile_wallet_button.setIcon(icon)
-
-# Set the text for the button
-        mobile_wallet_button.setText(" | Mobile Wallet")
-
-        mobile_wallet_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(33))
-
-        mobile_wallet_button.setParent(own_account_widget)
-
-
-        
-
         
         '''loan_account_button = QPushButton(self)
         loan_account_button.setGeometry(50, 490, 500, 50)
@@ -2942,33 +2906,6 @@ to successfully change your Email Address""") # Print the generated OTP
 
         loan_account_button.setParent(balance_widget)'''
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
         self.stacked_widget.addWidget(own_account_widget)
 
     def transfer_to_my_saving_account(self) :
@@ -3007,7 +2944,7 @@ to successfully change your Email Address""") # Print the generated OTP
                                            background-color: #333333;
                                                         }
                                           """)
-        #self.transfer_button.clicked.connect(self.perform_own_account_transfer)
+        self.transfer4_button.clicked.connect(self.perform_wallet_to_saving_account_transfer)
         self.transfer4_button.setParent(transfer_to_my_saving_account_widget)
 
         self.transfer4_notify_label = QLabel("", self)
@@ -3016,6 +2953,233 @@ to successfully change your Email Address""") # Print the generated OTP
         self.transfer4_notify_label.setParent(transfer_to_my_saving_account_widget)
 
         self.stacked_widget.addWidget(transfer_to_my_saving_account_widget)
+
+
+       
+
+        #Create a QLabel for the information display 
+        self.pin_info_label_widget = QWidget()
+        self.pin_info_label = QLabel("<html><p>Enter Your Pin<p></html> ", self.pin_info_label_widget)
+        self.pin_info_label.setAlignment(Qt.AlignCenter)
+        self.pin_info_label.setGeometry(50,200,400,40)
+        self.pin_info_label.setStyleSheet("background-color: black; color: white; padding: 10px; border-radius: 100px; font-size: 10pt;")
+        self.pin_info_label.hide() # Hide the info label initially
+        self.pin_info_label.setParent(transfer_to_my_saving_account_widget)
+
+        #create a container widget for the otp input
+        self.pin_container = QWidget()
+        self.pin_container.setGeometry(50,235,400,100)
+        self.pin_container.setStyleSheet("background-color: blue; border-radius: 5px; padding: 5px;")
+        self.pin_container.hide()
+        self.pin_container.setParent(transfer_to_my_saving_account_widget)
+
+        # Create a QVBoxLayout for the container
+        self.pin_container_layout = QVBoxLayout(self.pin_container)
+        self.pin_container_layout.setContentsMargins(0, 0, 0, 0)  # No margins
+       # self.container_layout.setParent(email_widget)
+
+
+       
+
+        #Create a QHBoxlayout for the OTP boxes 
+        self.layout = QHBoxLayout()
+        self.layout.setContentsMargins(10,10,10,10) #set Margins
+      #  self.layout.setParent(email_widget)
+
+        #Create Six QLineEDIT Boxes for the otp
+        self.pin_boxes = []
+        for _ in range(4):
+            pin_box = QLineEdit(self.pin_container)
+            pin_box.setFixedSize(50, 50)  # Set fixed size for each box
+            pin_box.setMaxLength(1)  # Limit input to one character
+            pin_box.setAlignment(Qt.AlignCenter)  # Center align text
+            pin_box.setStyleSheet(
+                "background-color: white; border: 1px solid black; border-radius: 10px; font-size: 18px;")
+            self.layout.addWidget(pin_box)
+            self.pin_boxes.append(pin_box)
+             # Connect textChanged signal to handle_otp_input slot
+            pin_box.textChanged.connect(self.handle_pin_input)
+
+
+        self.pin_container_layout.addLayout(self.layout)
+
+
+           # Create a QLabel for time remaining display (initially hidden)
+        self.pin_label_widget = QWidget()
+        self.pin_label = QLabel("", self.pin_label_widget)
+        self.pin_label.setAlignment(Qt.AlignCenter)
+        self.pin_label.setGeometry(50,335,400,40)
+        self.pin_label.setStyleSheet("background-color: black; color: white; padding: 10px; border-radius: 100px; font-size: 10pt;")
+        self.pin_label.hide()
+        self.pin_label.setParent(transfer_to_my_saving_account_widget)
+
+
+
+
+        self.stacked_widget.addWidget(transfer_to_my_saving_account_widget)
+     
+          
+    def handle_pin_input(self, text):
+        current_pin = self.sender()  # Get the sender QLineEdit
+        index = self.pin_boxes.index(current_pin)
+        if len(text) == 1 and index < len(self.pin_boxes) - 1:
+            self.pin_boxes[index + 1].setFocus()  # Move focus to the next box
+        elif len(text) == 1 and index == len(self.pin_boxes) - 1:
+            self.check_pin()
+               
+
+       
+       
+    def perform_wallet_to_saving_account_transfer(self):   
+    
+        receiver_acc = self.receiver_acc_input.text()
+        transfer_amount4 = self.transfer4_amount_input.text()
+
+
+          # Validate inputs
+        if not receiver_acc or not transfer_amount4:
+            self.transfer4_notify_label.setText("Please fill in all fields.")
+            self.transfer4_notify_label.show()
+            return
+
+        try:
+            transfer_amount4 = Decimal(transfer_amount4)
+        except ValueError:
+            self.transfer4_notify_label.setText("Please enter a valid amount.")
+            self.transfer4_notify_label.show()
+            return
+
+        if transfer_amount4 <= 0:
+            self.transfer4_notify_label.setText("Transfer amount must be greater than zero.")
+            self.transfer4_notify_label.show()
+            return
+        
+        if transfer_amount4 != "":
+            
+            self.pin_info_label.show()
+            self.pin_container.show()
+            self.pin_label.show()
+            self.receiver1_acc_input.hide()
+            self.transfer4_amount_input.hide()
+      
+            
+
+        self.transfer4_notify_label.hide()  
+
+    def perform_transaction2(self):    
+        receiver_acc = self.receiver_acc_input.text()
+        transfer_amount4 = self.transfer4_amount_input.text()
+
+        transfer_amount4 = Decimal(transfer_amount4)
+
+        
+
+
+        try:
+            cursor = self.db.cursor()
+
+        # Check if the account has a PIN set
+            cursor.execute("SELECT PIN FROM my_accountdb WHERE Email = %s", (self.current_user_email,))
+            account2_result = cursor.fetchone()
+
+            if not account2_result or account2_result[0] is None:
+                QMessageBox.information(self, "Failed", "Please Activate Your Account By Setting Pin")
+
+                return
+
+
+            # Check if receiver account exists and has sufficient funds
+            cursor.execute("SELECT Amount FROM saving_accountdb WHERE Account_ID =%s  AND Email = %s ",  (receiver_acc,self.current_user_email,))
+            receiver_result = cursor.fetchone()
+
+            if not receiver_result:
+               
+               QMessageBox.information(self, "Failed", "Account not Found")
+
+               return
+            
+            receiver_balance = receiver_result[0]
+
+
+
+            # Check if the user's bank account exists and get the current balance
+            cursor.execute("SELECT Balance FROM my_accountdb WHERE Email = %s", (self.current_user_email,))
+            wallet_result = cursor.fetchone()
+
+            # Convert the fetched amount to Decimal
+            wallet_balance = wallet_result[0]
+
+
+
+
+
+            if wallet_balance < transfer_amount4:
+                    QMessageBox.information(self, "Failed", "Insufficient Balance")
+                    
+                    self.transfer4_amount_input.clear()
+                    self.receiver_acc_input.clear()
+                    return
+            
+
+
+            # Perform the transfer
+            new_wallet_balance = wallet_balance - transfer_amount4
+            new_receiver_balance = receiver_balance + transfer_amount4
+
+            cursor.execute("UPDATE my_accountdb SET Balance = %s WHERE Email = %s", (new_wallet_balance, self.current_user_email))
+            self.db.commit()
+            cursor.execute("UPDATE saving_accountdb SET Amount = %s WHERE Email = %s", (new_receiver_balance, self.current_user_email))
+            self.db.commit()
+
+            QMessageBox.information(self, "Success", f"Transfer of Gh¢ {transfer_amount4:.2f} To  {receiver_acc},  completed successfully.")
+
+            
+
+        # Clear the input fields after successful transfer
+            self.transfer4_amount_input.clear()
+            self.receiver_acc_input.clear()
+
+        except mysql.connector.Error as e:
+            QMessageBox.information(self, "Failed", "Error tranfering from saving Account to Wallet")    
+
+
+
+    
+
+    def clear_pin_input(self):
+        for otp_box in self.pin_boxes:
+            otp_box.clear()  
+       
+        
+
+    
+
+    def check_pin(self):
+        entered_otp = "".join(box.text() for box in self.pin_boxes)
+        entered_otp = hashlib.sha256(entered_otp.encode()).hexdigest()
+
+        print(self.get_pin())
+        print(entered_otp)
+        if entered_otp == self.get_pin():
+            
+            
+            self.clear_pin_input()
+            
+            self.pin_info_label.hide()
+            self.pin_container.hide()
+            self.pin_label.hide() 
+            self.receiver_acc_input.show()
+            self.transfer4_amount_input.show()
+            self.perform_transaction2()
+            
+        else:
+            QMessageBox.warning(self, "Error", "Wrong Pin, Please try again")
+            self.clear_pin_input()
+            
+              
+
+
+
 
     def transfer_to_investment_account(self) :
 
@@ -3065,56 +3229,6 @@ to successfully change your Email Address""") # Print the generated OTP
         self.stacked_widget.addWidget(transfer_to_investment_account_widget)
 
 
-    def transfer_to_mobile_wallet(self):
-
-        
-        transfer_to_mobile_wallet_widget =QWidget()
-        transfer_to_mobile_wallet_label = QLabel("<html><p> Funds to Transfer to Mobile Wallet<p></html>", transfer_to_mobile_wallet_widget)
-        transfer_to_mobile_wallet_label.setGeometry(350, 50, 600 , 80)
-        transfer_to_mobile_wallet_label.setStyleSheet("background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")    
-        transfer_to_mobile_wallet_label.setAlignment(Qt.AlignCenter)
-
-        self.receiver2_acc_input = QLineEdit(self)
-        self.receiver2_acc_input.setGeometry(50, 200, 350, 50)
-        self.receiver2_acc_input.setPlaceholderText("Mobile Number")
-        self.receiver2_acc_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
-        self.receiver2_acc_input.setClearButtonEnabled(True)
-        self.receiver2_acc_input.setParent(transfer_to_mobile_wallet_widget)
-
-
-        self.transfer6_amount_input = QLineEdit(self)
-        self.transfer6_amount_input.setGeometry(50, 280, 350, 50)
-        self.transfer6_amount_input.setPlaceholderText("Amount to Transfer")
-        self.transfer6_amount_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
-        self.transfer6_amount_input.setClearButtonEnabled(True)
-        self.transfer6_amount_input.setParent(transfer_to_mobile_wallet_widget)
-
-        self.transfer6_button = QPushButton("Transfer", self)
-        transfer6_button_width = 300
-        transfer6_button_x = (self.width() - transfer6_button_width) // 3
-        self.transfer6_button.setGeometry(transfer6_button_x, 450, transfer6_button_width, 70)
-        self.transfer6_button.setStyleSheet("""
-                                           QPushButton {
-                                           background-color: blue;
-                                           font-size: 18pt;
-                                           border-radius: 35px;
-                                                        }
-                                           QPushButton:hover {
-                                           background-color: #333333;
-                                                        }
-                                          """)
-        #self.transfer_button.clicked.connect(self.perform_own_account_transfer)
-        self.transfer6_button.setParent(transfer_to_mobile_wallet_widget)
-
-        self.transfer6_notify_label = QLabel("", self)
-        self.transfer6_notify_label.setGeometry(50, 550, 600, 50)
-        self.transfer6_notify_label.setStyleSheet("color: red; font-size: 25px;")
-        self.transfer6_notify_label.setParent(transfer_to_mobile_wallet_widget)
-
-        self.stacked_widget.addWidget(transfer_to_mobile_wallet_widget)
-
-
-    
 
 
 
@@ -3296,16 +3410,303 @@ to successfully change your Email Address""") # Print the generated OTP
                                            background-color: #333333;
                                                              }
                                            """)
-      #  self.transfer_button.clicked.connect(self.perform_own_account_transfer)
+        self.transfer1_button.clicked.connect(self.perform_saving_account_to_account_transfer)
         self.transfer1_button.setParent(saving_to_my_account_transfer_widget)
 
+
         self.transfer1_notify_label = QLabel("", self)
-        self.transfer1_notify_label.setGeometry(50, 550, 600, 50)
+        self.transfer1_notify_label.setGeometry(50, 380, 600, 50)
         self.transfer1_notify_label.setStyleSheet("color: red; font-size: 25px;")
         self.transfer1_notify_label.setParent(saving_to_my_account_transfer_widget)
 
+        self.transfer1_regenerate_otp_button = QPushButton(self)
+        self.transfer1_regenerate_otp_button.setIcon(QIcon("refresh-page-option.png"))  # Set the icon for the button
+        self.transfer1_regenerate_otp_button.setToolTip("Regenerate OTP")  # Optional tooltip for the button
+        # Adjust the position and size of the button as needed
+        self.transfer1_regenerate_otp_button.setGeometry(410, 335, 40, 40)
+        self.transfer1_regenerate_otp_button.setStyleSheet("""
+                     QPushButton {
+                     background-color: blue;
+                      font-size: 18pt; 
+                      border-radius: 35px;
+                      }
+                       QPushButton:hover{
+                          background-color:#333333
+                      }
+                  """)
+        self.transfer1_regenerate_otp_button.hide()
+        self.transfer1_regenerate_otp_button.clicked.connect(self.generate_otp5)  # Connect the clicked signal
+        self.transfer1_regenerate_otp_button.setParent(saving_to_my_account_transfer_widget)
+        
+        self.otp_generated5 = False
+        self.otp5= ""
+
+        #Create a QLabel for the information display 
+        self.info_label5_widget = QWidget()
+        self.info_label5 = QLabel("<html><p>Enter the OTP....You have 1 minutes<p></html> ", self.info_label5_widget)
+        self.info_label5.setAlignment(Qt.AlignCenter)
+        self.info_label5.setGeometry(50,200,400,40)
+        self.info_label5.setStyleSheet("background-color: black; color: white; padding: 10px; border-radius: 100px; font-size: 10pt;")
+        self.info_label5.hide() # Hide the info label initially
+        self.info_label5.setParent(saving_to_my_account_transfer_widget)
+
+        #create a container widget for the otp input
+        self.container5 = QWidget()
+        self.container5.setGeometry(50,235,400,100)
+        self.container5.setStyleSheet("background-color: blue; border-radius: 5px; padding: 5px;")
+        self.container5.hide()
+        self.container5.setParent(saving_to_my_account_transfer_widget)
+
+        # Create a QVBoxLayout for the container
+        self.container_layout5 = QVBoxLayout(self.container5)
+        self.container_layout5.setContentsMargins(0, 0, 0, 0)  # No margins
+       # self.container_layout.setParent(email_widget)
+
+
        
+
+        #Create a QHBoxlayout for the OTP boxes 
+        self.layout = QHBoxLayout()
+        self.layout.setContentsMargins(10,10,10,10) #set Margins
+      #  self.layout.setParent(email_widget)
+
+        #Create Six QLineEDIT Boxes for the otp
+        self.otp5_boxes = []
+        for _ in range(6):
+            otp5_box = QLineEdit(self.container5)
+            otp5_box.setFixedSize(50, 50)  # Set fixed size for each box
+            otp5_box.setMaxLength(1)  # Limit input to one character
+            otp5_box.setAlignment(Qt.AlignCenter)  # Center align text
+            otp5_box.setStyleSheet(
+                "background-color: white; border: 1px solid black; border-radius: 10px; font-size: 18px;")
+            self.layout.addWidget(otp5_box)
+            self.otp5_boxes.append(otp5_box)
+             # Connect textChanged signal to handle_otp_input slot
+            otp5_box.textChanged.connect(self.handle_otp_input5)
+
+
+        self.container_layout5.addLayout(self.layout)
+
+
+           # Create a QLabel for time remaining display (initially hidden)
+        self.timer_label5_widget = QWidget()
+        self.timer_label5 = QLabel("<html><p>Time remaining....60 seconds<p></html> ", self.timer_label5_widget)
+        self.timer_label5.setAlignment(Qt.AlignCenter)
+        self.timer_label5.setGeometry(50,335,360,40)
+        self.timer_label5.setStyleSheet("background-color: black; color: white; padding: 10px; border-radius: 100px; font-size: 10pt;")
+        self.timer_label5.hide()
+        self.timer_label5.setParent(saving_to_my_account_transfer_widget)
+
+
+
+
         self.stacked_widget.addWidget(saving_to_my_account_transfer_widget)
+
+        
+    def handle_otp_input5(self, text):
+        current_box5 = self.sender()  # Get the sender QLineEdit
+        index = self.otp5_boxes.index(current_box5)
+        if len(text) == 1 and index < len(self.otp5_boxes) - 1:
+            self.otp5_boxes[index + 1].setFocus()  # Move focus to the next box
+        elif len(text) == 1 and index == len(self.otp5_boxes) - 1:
+            self.check_otp5()
+               
+
+    def update_timer5(self):
+        self.time_left -= 1
+        self.timer_label5.setText(f"Time remaining: {self.time_left} seconds")
+        if self.time_left == 0:
+            self.timer.stop()
+            self.clear_otp_input5()
+            self.otp_generated5
+            self.otp_generated5 = False
+            QMessageBox.warning(self, "OTP Expired", "Your OTP has expired. Please request a new OTP.")
+         
+
+       
+       
+
+    def perform_saving_account_to_account_transfer(self):
+        sender_acc1 = self.sender1_acc_input.text()
+        transfer_amount1 = self.transfer_amount1_input.text()
+
+
+          # Validate inputs
+        if not sender_acc1 or not transfer_amount1:
+            self.transfer1_notify_label.setText("Please fill in all fields.")
+            self.transfer1_notify_label.show()
+            return
+
+        try:
+            transfer_amount1 = Decimal(transfer_amount1)
+        except ValueError:
+            self.transfer1_notify_label.setText("Please enter a valid amount.")
+            self.transfer1_notify_label.show()
+            return
+
+        if transfer_amount1 <= 0:
+            self.transfer1_notify_label.setText("Transfer amount must be greater than zero.")
+            self.transfer1_notify_label.show()
+            return
+        
+        if transfer_amount1 != "":
+            self.generate_otp5()
+            self.otp_generated5 = True
+            self.info_label5.show()
+            self.container5.show()
+            self.timer_label5.show()
+            self.transfer1_regenerate_otp_button.show()
+            self.transfer1_notify_label.setText("")
+            self.sender1_acc_input.hide()
+            self.transfer_amount1_input.hide()
+      
+            self.start_timer5()
+
+        self.transfer1_notify_label.hide()  
+
+    def perform_transaction1(self):    
+        sender_acc1 = self.sender1_acc_input.text()
+        transfer_amount1 = self.transfer_amount1_input.text()
+
+        transfer_amount1 = Decimal(transfer_amount1)
+
+        
+
+
+        try:
+            cursor = self.db.cursor()
+
+        # Check if the account has a PIN set
+            cursor.execute("SELECT PIN FROM my_accountdb WHERE Email = %s", (self.current_user_email,))
+            account1_result = cursor.fetchone()
+
+            if not account1_result or account1_result[0] is None:
+                self.transfer1_notify_label.setText("Please activate your account by setting a PIN.")
+                self.transfer1_notify_label.show()
+                return
+
+
+            # Check if sender account exists and has sufficient funds
+            cursor.execute("SELECT Amount FROM saving_accountdb WHERE Account_ID = %s", (sender_acc1,))
+            sender_result = cursor.fetchone()
+
+            if not sender_result:
+               
+               QMessageBox.information(self, "Failed", "Account not Found")
+
+               return
+            
+            sender1_balance = sender_result[0]
+
+            if sender1_balance < transfer_amount1:
+                    QMessageBox.information(self, "Failed", "Insufficient Balance")
+                    self.transfer_amount1_input.clear()
+                    self.sender1_acc_input.clear()
+                    return
+            
+
+                
+            
+            
+            # Check if the user's bank account exists and get the current balance
+            cursor.execute("SELECT Balance FROM my_accountdb WHERE Email = %s", (self.current_user_email,))
+            account1_result = cursor.fetchone()
+
+            # Convert the fetched amount to Decimal
+            account1_balance = account1_result[0]
+
+
+            # Perform the transfer
+            new_sender1_balance = sender1_balance - transfer_amount1
+            new_account1_balance = account1_balance + transfer_amount1
+
+            cursor.execute("UPDATE my_accountdb SET Balance = %s WHERE Email = %s", (new_account1_balance, self.current_user_email))
+            self.db.commit()
+            cursor.execute("UPDATE saving_accountdb SET Amount = %s WHERE Email = %s", (new_sender1_balance, self.current_user_email))
+            self.db.commit()
+
+            QMessageBox.information(self, "Success", f"Transfer of Gh¢ {transfer_amount1:.2f} from  {sender_acc1} to Wallet,  completed successfully.")
+
+            
+
+        # Clear the input fields after successful transfer
+            self.transfer_amount1_input.clear()
+            self.sender1_acc_input.clear()
+
+        except mysql.connector.Error as e:
+            QMessageBox.information(self, "Failed", "Error tranfering from saving Account to Wallet")    
+
+    def start_timer5(self):
+
+         # Check if timer is already running, stop it first
+        if hasattr(self, 'timer') and self.timer.isActive():
+            self.timer.stop()
+           # Initialize timer
+        self.time_left = 60 # 3 minutes (180 seconds)
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_timer5)
+        self.timer.start(1000)  # Update timer every  
+
+
+    def generate_otp5(self):
+        email = self.current_user_email
+        number = self.phone_number
+        self.otp5 = str(random.randint(100000, 999999))
+        print(f"Sending OTP to {email}")
+        print(f"""Your Verification code: {self.otp5}
+For security reasons, do not share
+this code with anyone. Enter this code 
+to successfully change your Email Address""") 
+        print(f"Sending OTP to {number}")
+        print(f"""Your Verification code: {self.otp5}
+For security reasons, do not share
+this code with anyone. Enter this code 
+to successfully change your Email Address""") # Print the generated OTP
+        self.start_timer5()
+
+    
+
+    def clear_otp_input5(self):
+        for otp_box in self.otp5_boxes:
+            otp_box.clear()  
+       
+        
+
+    
+
+    def check_otp5(self):
+        entered_otp = "".join(box.text() for box in self.otp5_boxes)
+
+        if self.time_left <= 0:
+           QMessageBox.warning(self, "OTP Expired", "Your OTP has expired. Please request a new OTP.")
+           self.clear_otp_input5()
+           self.otp_generated5 = False
+           return
+           
+        if entered_otp == self.otp5:
+            QMessageBox.information(self, "Success", "OTP Matched Successfully")
+            self.clear_otp_input5()
+            
+            self.info_label5.hide()
+            self.container5.hide()
+            self.timer_label5.hide()
+            self.transfer1_regenerate_otp_button.hide()
+            self.timer.stop() 
+            self.sender1_acc_input.show()
+            self.transfer_amount1_input.show()
+            self.perform_transaction1()
+            
+            
+          
+           
+
+
+        else:
+            QMessageBox.warning(self, "Error", "Invalid OTP, Please try again")
+            self.clear_otp_input5()
+            self.otp_generated4 = False   
+
+
 
     def investment_to_my_account_transfer(self):
 
@@ -3395,16 +3796,87 @@ to successfully change your Email Address""") # Print the generated OTP
                                            background-color: #333333;
                                                              }
                                            """)
-      #  self.transfer_button.clicked.connect(self.perform_own_account_transfer)
+        self.transfer3_button.clicked.connect(self.perform_mobile_wallet_to_account_transfer)
         self.transfer3_button.setParent(mobile_wallet_to_account_transfer_widget)
 
         self.transfer3_notify_label = QLabel("", self)
-        self.transfer3_notify_label.setGeometry(50, 550, 600, 50)
+        self.transfer3_notify_label.setGeometry(50, 380, 600, 50)
         self.transfer3_notify_label.setStyleSheet("color: red; font-size: 25px;")
         self.transfer3_notify_label.setParent(mobile_wallet_to_account_transfer_widget)
 
         self.stacked_widget.addWidget(mobile_wallet_to_account_transfer_widget)
     
+
+    def perform_mobile_wallet_to_account_transfer(self):
+        mobile_number3 = self.sender3_acc_input.text()
+        transfer_amount3 = self.transfer_amount3_input.text()
+
+
+          # Validate inputs
+        if not mobile_number3 or not transfer_amount3:
+            self.transfer3_notify_label.setText("Please fill in all fields.")
+            self.transfer3_notify_label.show()
+            return
+
+        try:
+            transfer_amount3 = Decimal(transfer_amount3)
+        except ValueError:
+            self.transfer3_notify_label.setText("Please enter a valid amount.")
+            self.transfer3_notify_label.show()
+            return
+
+        if transfer_amount3 <= 0:
+            self.transfer3_notify_label.setText("Transfer amount must be greater than zero.")
+            self.transfer3_notify_label.show()
+            return
+
+        try:
+            cursor = self.db.cursor()
+
+        # Check if the account has a PIN set
+            cursor.execute("SELECT Pin FROM my_accountdb WHERE Email = %s", (self.current_user_email,))
+            account_result = cursor.fetchone()
+
+            if not account_result or account_result[0] is None:
+                self.transfer3_notify_label.setText("Please activate your account by setting a PIN.")
+                self.transfer3_notify_label.show()
+                return
+            
+            # Check if the user's bank account exists and get the current balance
+            cursor.execute("SELECT Balance FROM my_accountdb WHERE Email = %s", (self.current_user_email,))
+            account_result = cursor.fetchone()
+
+            # Convert the fetched amount to Decimal
+            account_balance = account_result[0]
+
+
+            # Perform the transfer
+            new_account_balance = account_balance + transfer_amount3
+
+            cursor.execute("UPDATE my_accountdb SET Balance = %s WHERE Email = %s", (new_account_balance, self.current_user_email))
+            self.db.commit()
+
+            QMessageBox.information(self, "Success", f"Transfer of Gh¢ {transfer_amount3:.2f} from mobile wallet to Account completed successfully.")
+
+            
+
+        # Clear the input fields after successful transfer
+            self.transfer_amount3_input.clear()
+            self.sender3_acc_input.clear()
+
+        except mysql.connector.Error as e:
+            QMessageBox.information(self, "Failed", "Error tranfering from mobile wallet to Account")
+
+
+
+
+            
+
+        
+
+
+
+
 
      
     
@@ -3412,22 +3884,522 @@ to successfully change your Email Address""") # Print the generated OTP
 
     def another_account_page(self):
         another_account_widget =QWidget()
-        another_account_label = QLabel("<html><p> Funds to Transfer-To Other Account<p></html>", another_account_widget)
+        another_account_label = QLabel("<html><p> Funds to Transfer-To Inter Account<p></html>", another_account_widget)
         another_account_label.setGeometry(350, 50, 600 , 80)
         another_account_label.setStyleSheet("background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")    
         another_account_label.setAlignment(Qt.AlignCenter)
+
+
+        self.receiver3_acc_input = QLineEdit(self)
+        self.receiver3_acc_input.setGeometry(50, 200, 350, 50)
+        self.receiver3_acc_input.setPlaceholderText("Enter Mobile Number")
+        self.receiver3_acc_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+        self.receiver3_acc_input.setClearButtonEnabled(True)
+        self.receiver3_acc_input.setParent(another_account_widget)
+
+
+        self.transfer7_amount_input = QLineEdit(self)
+        self.transfer7_amount_input.setGeometry(50, 280, 350, 50)
+        self.transfer7_amount_input.setPlaceholderText("Amount to Transfer")
+        self.transfer7_amount_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+        self.transfer7_amount_input.setClearButtonEnabled(True)
+        self.transfer7_amount_input.setParent(another_account_widget)
+
+        self.transfer7_button = QPushButton("Transfer", self)
+        transfer7_button_width = 300
+        transfer7_button_x = (self.width() - transfer7_button_width) // 3
+        self.transfer7_button.setGeometry(transfer7_button_x, 450, transfer7_button_width, 70)
+        self.transfer7_button.setStyleSheet("""
+                                           QPushButton {
+                                           background-color: blue;
+                                           font-size: 18pt;
+                                           border-radius: 35px;
+                                                        }
+                                           QPushButton:hover {
+                                           background-color: #333333;
+                                                        }
+                                          """)
+        self.transfer7_button.clicked.connect(self.perform_wallet_to_inter_wallet_transfer)
+        self.transfer7_button.setParent(another_account_widget)
+
+        self.transfer7_notify_label = QLabel("", self)
+        self.transfer7_notify_label.setGeometry(50, 550, 600, 50)
+        self.transfer7_notify_label.setStyleSheet("color: red; font-size: 25px;")
+        self.transfer7_notify_label.setParent(another_account_widget)
+
+
+        #Create a QLabel for the information display 
+        self.pin_info_label1_widget = QWidget()
+        self.pin_info_label1 = QLabel("<html><p>Enter Your Pin<p></html> ", self.pin_info_label1_widget)
+        self.pin_info_label1.setAlignment(Qt.AlignCenter)
+        self.pin_info_label1.setGeometry(50,200,400,40)
+        self.pin_info_label1.setStyleSheet("background-color: black; color: white; padding: 10px; border-radius: 100px; font-size: 10pt;")
+        self.pin_info_label1.hide() # Hide the info label initially
+        self.pin_info_label1.setParent(another_account_widget)
+
+        #create a container widget for the otp input
+        self.pin_container1 = QWidget()
+        self.pin_container1.setGeometry(50,235,400,100)
+        self.pin_container1.setStyleSheet("background-color: blue; border-radius: 5px; padding: 5px;")
+        self.pin_container1.hide()
+        self.pin_container1.setParent(another_account_widget)
+
+        # Create a QVBoxLayout for the container
+        self.pin_container_layout1 = QVBoxLayout(self.pin_container1)
+        self.pin_container_layout1.setContentsMargins(0, 0, 0, 0)  # No margins
+       # self.container_layout.setParent(email_widget)
+
+
+       
+
+        #Create a QHBoxlayout for the OTP boxes 
+        self.layout = QHBoxLayout()
+        self.layout.setContentsMargins(10,10,10,10) #set Margins
+      #  self.layout.setParent(email_widget)
+
+        #Create Six QLineEDIT Boxes for the otp
+        self.pin1_boxes = []
+        for _ in range(4):
+            pin1_box = QLineEdit(self.pin_container1)
+            pin1_box.setFixedSize(50, 50)  # Set fixed size for each box
+            pin1_box.setMaxLength(1)  # Limit input to one character
+            pin1_box.setAlignment(Qt.AlignCenter)  # Center align text
+            pin1_box.setStyleSheet(
+                "background-color: white; border: 1px solid black; border-radius: 10px; font-size: 18px;")
+            self.layout.addWidget(pin1_box)
+            self.pin1_boxes.append(pin1_box)
+             # Connect textChanged signal to handle_otp_input slot
+            pin1_box.textChanged.connect(self.handle_pin_input1)
+
+
+        self.pin_container_layout1.addLayout(self.layout)
+
+
+           # Create a QLabel for time remaining display (initially hidden)
+        self.pin_label1_widget = QWidget()
+        self.pin_label1 = QLabel("", self.pin_label1_widget)
+        self.pin_label1.setAlignment(Qt.AlignCenter)
+        self.pin_label1.setGeometry(50,335,400,40)
+        self.pin_label1.setStyleSheet("background-color: black; color: white; padding: 10px; border-radius: 100px; font-size: 10pt;")
+        self.pin_label1.hide()
+        self.pin_label1.setParent(another_account_widget)
+
+        
         self.stacked_widget.addWidget(another_account_widget)
+
+
+         
+    def handle_pin_input1(self, text):
+        current_pin = self.sender()  # Get the sender QLineEdit
+        index = self.pin1_boxes.index(current_pin)
+        if len(text) == 1 and index < len(self.pin1_boxes) - 1:
+            self.pin1_boxes[index + 1].setFocus()  # Move focus to the next box
+        elif len(text) == 1 and index == len(self.pin1_boxes) - 1:
+            self.check_pin1()
+               
+
+       
+       
+    def perform_wallet_to_inter_wallet_transfer(self):   
+    
+        receiver_acc3 = self.receiver3_acc_input.text()
+        transfer_amount7 = self.transfer7_amount_input.text()
+
+
+          # Validate inputs
+        if not receiver_acc3 or not transfer_amount7:
+            self.transfer7_notify_label.setText("Please fill in all fields.")
+            self.transfer7_notify_label.show()
+            return
+
+        try:
+            transfer_amount7 = Decimal(transfer_amount7)
+        except ValueError:
+            self.transfer7_notify_label.setText("Please enter a valid amount.")
+            self.transfer7_notify_label.show()
+            return
+
+        if transfer_amount7 <= 0:
+            self.transfer7_notify_label.setText("Transfer amount must be greater than zero.")
+            self.transfer7_notify_label.show()
+            return
+        
+        if transfer_amount7 != "":
+            
+            self.pin_info_label1.show()
+            self.pin_container1.show()
+            self.pin_label1.show()
+            self.receiver3_acc_input.hide()
+            self.transfer7_amount_input.hide()
+      
+            
+
+        self.transfer7_notify_label.hide()  
+
+    def perform_transaction3(self):    
+        receiver_acc3 = self.receiver3_acc_input.text()
+        transfer_amount7 = self.transfer7_amount_input.text()
+
+        transfer_amount7 = Decimal(transfer_amount7)
+
+        
+
+
+        try:
+            cursor = self.db.cursor()
+
+        # Check if the account has a PIN set
+            cursor.execute("SELECT PIN FROM my_accountdb WHERE Email = %s", (self.current_user_email,))
+            account3_result = cursor.fetchone()
+
+            if not account3_result or account3_result[0] is None:
+                QMessageBox.information(self, "Failed", "Please Activate Your Account By Setting Pin")
+
+                return
+
+
+            # Check if receiver account exists and has sufficient funds
+            cursor.execute("SELECT Balance FROM my_accountdb WHERE Phonenumber=%s",  (receiver_acc3,))
+            receiver_result = cursor.fetchone()
+
+            if not receiver_result:
+               
+               QMessageBox.information(self, "Failed", "Account not Found")
+
+               return
+            
+            receiver_balance = receiver_result[0]
+
+
+
+            # Check if the user's bank account exists and get the current balance
+            cursor.execute("SELECT Balance FROM my_accountdb WHERE Email = %s", (self.current_user_email,))
+            wallet_result = cursor.fetchone()
+
+            # Convert the fetched amount to Decimal
+            wallet_balance = wallet_result[0]
+
+
+
+
+
+            if wallet_balance < transfer_amount7:
+                    QMessageBox.information(self, "Failed", "Insufficient Balance")
+                    
+                    self.transfer7_amount_input.clear()
+                    self.receiver3_acc_input.clear()
+                    return
+            
+
+
+            # Perform the transfer
+            new_wallet_balance = wallet_balance - transfer_amount7
+            new_receiver_balance = receiver_balance + transfer_amount7
+
+            cursor.execute("UPDATE my_accountdb SET Balance = %s WHERE Email = %s", (new_wallet_balance, self.current_user_email))
+            self.db.commit()
+            cursor.execute("UPDATE my_accountdb SET Balance = %s WHERE Phonenumber = %s", (new_receiver_balance, receiver_acc3))
+            self.db.commit()
+
+            QMessageBox.information(self, "Success", f"Transfer of Gh¢ {transfer_amount7:.2f} To  {receiver_acc3},  completed successfully.")
+
+            
+
+        # Clear the input fields after successful transfer
+            self.transfer7_amount_input.clear()
+            self.receiver3_acc_input.clear()
+
+        except mysql.connector.Error as e:
+            QMessageBox.information(self, "Failed", "Error tranfering from saving Account to Wallet")    
+
+
+
+    
+
+    def clear_pin_input1(self):
+        for otp_box in self.pin1_boxes:
+            otp_box.clear()  
+       
+        
+
+    
+
+    def check_pin1(self):
+        entered_otp = "".join(box.text() for box in self.pin1_boxes)
+        entered_otp = hashlib.sha256(entered_otp.encode()).hexdigest()
+
+        print(self.get_pin())
+        print(entered_otp)
+        if entered_otp == self.get_pin():
+            
+            
+            self.clear_pin_input1()
+            
+            self.pin_info_label1.hide()
+            self.pin_container1.hide()
+            self.pin_label1.hide() 
+            self.receiver3_acc_input.show()
+            self.transfer7_amount_input.show()
+            self.perform_transaction3()
+            
+        else:
+            QMessageBox.warning(self, "Error", "Wrong Pin, Please try again")
+            self.clear_pin_input1()    
     
 
 
     def wallet_page(self):
         wallet_widget =QWidget()
-        wallet_label = QLabel("<html><p> Funds to Transfer-To Wallet<p></html>", wallet_widget)
+        wallet_label = QLabel("<html><p> Funds Transfer-To Wallet<p></html>", wallet_widget)
         wallet_label.setGeometry(350, 50, 600 , 80)
         wallet_label.setStyleSheet("background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")    
         wallet_label.setAlignment(Qt.AlignCenter)
         self.stacked_widget.addWidget(wallet_widget)
+
+        
+
+        
+        
+
+        self.receiver2_acc_input = QLineEdit(self)
+        self.receiver2_acc_input.setGeometry(50, 200, 350, 50)
+        self.receiver2_acc_input.setPlaceholderText("Mobile Number")
+        self.receiver2_acc_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+        self.receiver2_acc_input.setClearButtonEnabled(True)
+        self.receiver2_acc_input.setParent(wallet_widget)
+
+
+        self.transfer6_amount_input = QLineEdit(self)
+        self.transfer6_amount_input.setGeometry(50, 280, 350, 50)
+        self.transfer6_amount_input.setPlaceholderText("Amount to Transfer")
+        self.transfer6_amount_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+        self.transfer6_amount_input.setClearButtonEnabled(True)
+        self.transfer6_amount_input.setParent(wallet_widget)
+
+        self.transfer6_button = QPushButton("Transfer", self)
+        transfer6_button_width = 300
+        transfer6_button_x = (self.width() - transfer6_button_width) // 3
+        self.transfer6_button.setGeometry(transfer6_button_x, 450, transfer6_button_width, 70)
+        self.transfer6_button.setStyleSheet("""
+                                           QPushButton {
+                                           background-color: blue;
+                                           font-size: 18pt;
+                                           border-radius: 35px;
+                                                        }
+                                           QPushButton:hover {
+                                           background-color: #333333;
+                                                        }
+                                          """)
+        self.transfer6_button.clicked.connect(self.perform_wallet_to_mobile_wallet_transfer)
+        self.transfer6_button.setParent(wallet_widget)
+
+        self.transfer6_notify_label = QLabel("", self)
+        self.transfer6_notify_label.setGeometry(50, 550, 600, 50)
+        self.transfer6_notify_label.setStyleSheet("color: red; font-size: 25px;")
+        self.transfer6_notify_label.setParent(wallet_widget)
+
+         #Create a QLabel for the information display 
+        self.pin_info_label2_widget = QWidget()
+        self.pin_info_label2 = QLabel("<html><p>Enter Your Pin<p></html> ", self.pin_info_label2_widget)
+        self.pin_info_label2.setAlignment(Qt.AlignCenter)
+        self.pin_info_label2.setGeometry(50,200,400,40)
+        self.pin_info_label2.setStyleSheet("background-color: black; color: white; padding: 10px; border-radius: 100px; font-size: 10pt;")
+        self.pin_info_label2.hide() # Hide the info label initially
+        self.pin_info_label2.setParent(wallet_widget)
+
+        #create a container widget for the otp input
+        self.pin_container2 = QWidget()
+        self.pin_container2.setGeometry(50,235,400,100)
+        self.pin_container2.setStyleSheet("background-color: blue; border-radius: 5px; padding: 5px;")
+        self.pin_container2.hide()
+        self.pin_container2.setParent(wallet_widget)
+
+        # Create a QVBoxLayout for the container
+        self.pin_container_layout2 = QVBoxLayout(self.pin_container2)
+        self.pin_container_layout2.setContentsMargins(0, 0, 0, 0)  # No margins
+       # self.container_layout.setParent(email_widget)
+
+
+       
+
+        #Create a QHBoxlayout for the OTP boxes 
+        self.layout = QHBoxLayout()
+        self.layout.setContentsMargins(10,10,10,10) #set Margins
+      #  self.layout.setParent(email_widget)
+
+        #Create Six QLineEDIT Boxes for the otp
+        self.pin2_boxes = []
+        for _ in range(4):
+            pin2_box = QLineEdit(self.pin_container2)
+            pin2_box.setFixedSize(50, 50)  # Set fixed size for each box
+            pin2_box.setMaxLength(1)  # Limit input to one character
+            pin2_box.setAlignment(Qt.AlignCenter)  # Center align text
+            pin2_box.setStyleSheet(
+                "background-color: white; border: 1px solid black; border-radius: 10px; font-size: 18px;")
+            self.layout.addWidget(pin2_box)
+            self.pin2_boxes.append(pin2_box)
+             # Connect textChanged signal to handle_otp_input slot
+            pin2_box.textChanged.connect(self.handle_pin_input2)
+
+
+        self.pin_container_layout2.addLayout(self.layout)
+
+
+           # Create a QLabel for time remaining display (initially hidden)
+        self.pin_label2_widget = QWidget()
+        self.pin_label2 = QLabel("", self.pin_label2_widget)
+        self.pin_label2.setAlignment(Qt.AlignCenter)
+        self.pin_label2.setGeometry(50,335,400,40)
+        self.pin_label2.setStyleSheet("background-color: black; color: white; padding: 10px; border-radius: 100px; font-size: 10pt;")
+        self.pin_label2.hide()
+        self.pin_label2.setParent(wallet_widget)
+
+
+        self.stacked_widget.addWidget(wallet_widget)
     
+    def handle_pin_input2(self, text):
+        current_pin = self.sender()  # Get the sender QLineEdit
+        index = self.pin2_boxes.index(current_pin)
+        if len(text) == 1 and index < len(self.pin2_boxes) - 1:
+            self.pin2_boxes[index + 1].setFocus()  # Move focus to the next box
+        elif len(text) == 1 and index == len(self.pin2_boxes) - 1:
+            self.check_pin2()
+               
+
+       
+       
+    def perform_wallet_to_mobile_wallet_transfer(self):   
+    
+        receiver_acc2 = self.receiver2_acc_input.text()
+        transfer_amount6 = self.transfer6_amount_input.text()
+
+
+          # Validate inputs
+        if not receiver_acc2 or not transfer_amount6:
+            self.transfer6_notify_label.setText("Please fill in all fields.")
+            self.transfer6_notify_label.show()
+            return
+
+        try:
+            transfer_amount6 = Decimal(transfer_amount6)
+        except ValueError:
+            self.transfer6_notify_label.setText("Please enter a valid amount.")
+            self.transfer6_notify_label.show()
+            return
+
+        if transfer_amount6 <= 0:
+            self.transfer6_notify_label.setText("Transfer amount must be greater than zero.")
+            self.transfer6_notify_label.show()
+            return
+        
+        if transfer_amount6 != "":
+            
+            self.pin_info_label2.show()
+            self.pin_container2.show()
+            self.pin_label2.show()
+            self.receiver2_acc_input.hide()
+            self.transfer6_amount_input.hide()
+      
+            
+
+        self.transfer6_notify_label.hide()  
+
+    def perform_transaction4(self):    
+        receiver_acc2 = self.receiver2_acc_input.text()
+        transfer_amount6 = self.transfer6_amount_input.text()
+
+        transfer_amount6 = Decimal(transfer_amount6)
+
+        
+
+
+        try:
+            cursor = self.db.cursor()
+
+        # Check if the account has a PIN set
+            cursor.execute("SELECT PIN FROM my_accountdb WHERE Email = %s", (self.current_user_email,))
+            account3_result = cursor.fetchone()
+
+            if not account3_result or account3_result[0] is None:
+                QMessageBox.information(self, "Failed", "Please Activate Your Account By Setting Pin")
+
+                return
+
+
+
+
+            # Check if the user's bank account exists and get the current balance
+            cursor.execute("SELECT Balance FROM my_accountdb WHERE Email = %s", (self.current_user_email,))
+            wallet_result = cursor.fetchone()
+
+            # Convert the fetched amount to Decimal
+            wallet_balance = wallet_result[0]
+
+
+
+
+
+            if wallet_balance < transfer_amount6:
+                    QMessageBox.information(self, "Failed", "Insufficient Balance")
+                    
+                    self.transfer6_amount_input.clear()
+                    self.receiver2_acc_input.clear()
+                    return
+            
+
+
+            # Perform the transfer
+            new_wallet_balance = wallet_balance - transfer_amount6
+            
+
+            cursor.execute("UPDATE my_accountdb SET Balance = %s WHERE Email = %s", (new_wallet_balance, self.current_user_email))
+            self.db.commit()
+            
+            QMessageBox.information(self, "Success", f"Transfer of Gh¢ {transfer_amount6:.2f} To  {receiver_acc2},  completed successfully.")
+
+            
+
+        # Clear the input fields after successful transfer
+            self.transfer6_amount_input.clear()
+            self.receiver2_acc_input.clear()
+
+        except mysql.connector.Error as e:
+            QMessageBox.information(self, "Failed", "Error tranfering from saving Account to Wallet")    
+
+
+
+    
+
+    def clear_pin_input2(self):
+        for otp_box in self.pin2_boxes:
+            otp_box.clear()  
+       
+        
+
+    
+
+    def check_pin2(self):
+        entered_otp = "".join(box.text() for box in self.pin2_boxes)
+        entered_otp = hashlib.sha256(entered_otp.encode()).hexdigest()
+
+        print(self.get_pin())
+        print(entered_otp)
+        if entered_otp == self.get_pin():
+            
+            
+            self.clear_pin_input2()
+            
+            self.pin_info_label2.hide()
+            self.pin_container2.hide()
+            self.pin_label2.hide() 
+            self.receiver2_acc_input.show()
+            self.transfer6_amount_input.show()
+            self.perform_transaction4()
+            
+        else:
+            QMessageBox.warning(self, "Error", "Wrong Pin, Please try again")
+            self.clear_pin_input2()    
+   
 
                     
         
@@ -3979,6 +4951,7 @@ to successfully change your Email Address""") # Print the generated OTP
         entered_otp = self.otp3 # Get the entered OTP
 
         PIN = self.get_pin()
+        
 
 
 
@@ -4045,6 +5018,7 @@ to successfully change your Email Address""") # Print the generated OTP
             self.confirm_update_pin_input.clear()
             self.confirm_update_pin_input.hide()
             self.start_timer3()
+            print(self.get_pin())
            
           
 
@@ -5843,6 +6817,10 @@ to successfully change your Password""") # Print the generated OTP
         if index != 25:
             
             self.reset_ui_for_new_otp()   
+        if index != 28:
+            self.sender1_acc_input.clear()
+            self.transfer_amount1_input.clear()
+            self.transfer1_notify_label.hide()
     
 
 
@@ -5857,10 +6835,6 @@ to successfully change your Password""") # Print the generated OTP
         pixmap = QPixmap(self.image_paths[0])  # Assuming there's only one image in the list
         self.image_label.setPixmap(pixmap)
         self.image_label.setScaledContents(True)  # Ensure the image fits into the QLabel
-       
-    
-
-
 class RegisterWindow(QMainWindow):
     def __init__(self):
         super().__init__()
