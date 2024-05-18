@@ -6,6 +6,7 @@ import random
 import datetime
 import schedule
 import time
+import csv
 import mysql.connector
 from datetime import datetime, timedelta
 from PyQt5.QtCore import pyqtSlot
@@ -15,7 +16,7 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QIcon
 from PyQt5.QtGui import QPixmap,QPalette,QBrush,QPen,QPainter, QColor
 from PyQt5.QtCore import QRectF, QPoint, QObject,pyqtSignal, Qt, QPropertyAnimation, QRect, QTimer, QSize,QDate ,QCalendar ,QDateTime# Qt core manages the alignment, and the Qpropertyanimation, with the Qreact handles the animation
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QVBoxLayout, QPushButton, QWidget, QLineEdit, QStyle, QAction, QToolBar,QToolButton, QCheckBox, QMenu, QDateEdit, QMessageBox,QCalendarWidget,QStackedWidget,QFrame,QHBoxLayout
+from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QVBoxLayout,QFileDialog, QPushButton, QWidget, QLineEdit, QComboBox,QTextEdit, QStyle, QAction, QToolBar,QToolButton, QCheckBox, QMenu, QDateEdit, QMessageBox,QCalendarWidget,QStackedWidget,QFrame,QHBoxLayout
 
 
 class LoginWindow(QMainWindow):
@@ -1958,9 +1959,191 @@ to successfully change your Email Address""") # Print the generated OTP
             "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
         statement_label.setAlignment(Qt.AlignCenter)
        # profile_layout.addWidget(welcome_label)
+
+        account_label = QLabel("Select Account:", self)
+        account_label.setGeometry(50, 150, 200, 30)
+        account_label.setStyleSheet("font-size: 14pt; font-weight: bold;")
+        account_label.setParent(statement_widget)
+    
+        self.account_dropdown = QComboBox(self)
+        self.account_dropdown.setGeometry(250, 150, 350, 40)
+        self.account_dropdown.setStyleSheet("border-radius: 10px; padding: 5px; font-size: 14px; font-weight: bold;")
+        self.account_dropdown.setParent(statement_widget)
+    
+        from_date_label = QLabel("From Date:", self)
+        from_date_label.setGeometry(50, 200, 200, 30)
+        from_date_label.setStyleSheet("font-size: 14pt; font-weight: bold;")
+        from_date_label.setParent(statement_widget)
+    
+        self.from_date_picker = QDateEdit(self)
+        self.from_date_picker.setGeometry(250, 200, 200, 30)
+        self.from_date_picker.setCalendarPopup(True)
+        self.from_date_picker.setDate(QDate.currentDate().addMonths(-1))
+        self.from_date_picker.setStyleSheet("font-size: 14pt; font-weight: bold; border-radius: 10px; padding: 5px;")
+        self.from_date_picker.setParent(statement_widget)
+    
+        to_date_label = QLabel("To Date:", self)
+        to_date_label.setGeometry(50, 250, 200, 30)
+        to_date_label.setStyleSheet("font-size: 14pt; font-weight: bold;")
+        to_date_label.setParent(statement_widget)
+    
+        self.to_date_picker = QDateEdit(self)
+        self.to_date_picker.setGeometry(250, 250, 200, 30)
+        self.to_date_picker.setCalendarPopup(True)
+        self.to_date_picker.setDate(QDate.currentDate())
+        self.to_date_picker.setStyleSheet("font-size: 14pt; font-weight: bold; border-radius: 10px; padding: 5px;")
+        self.to_date_picker.setParent(statement_widget)
+    
+        self.statement_button = QPushButton("Generate Statement", self)
+        statement_button_width = 300
+        statement_button_x = (self.width() - statement_button_width) // 3
+        self.statement_button.setGeometry(statement_button_x, 720 ,statement_button_width, 50)
+        self.statement_button.setStyleSheet("""
+                                        QPushButton {
+                                             background-color: blue;
+                                             font-size: 14pt;
+                                             border-radius: 25px;
+                                                    }
+                                             QPushButton:hover {
+                                             background-color: #333333;
+                                                               }
+                                         """)
+        self.statement_button.clicked.connect(self.generate_statement)
+        self.statement_button.setParent(statement_widget)
+    
+        self.statement_text_area = QTextEdit(self)
+        self.statement_text_area.setGeometry(50, 370, 1200, 300)
+        self.statement_text_area.setStyleSheet("border-radius: 10px; padding: 10px; font-size: 14px;")
+        self.statement_text_area.setReadOnly(True)
+        self.statement_text_area.setParent(statement_widget)
+    
+        self.download_button = QPushButton("Download Statement", self)
+        download_button_width = 300
+        download_button_x = (self.width() - download_button_width) // 3
+        self.download_button.setGeometry(download_button_x, 800, download_button_width, 50)
+        self.download_button.setStyleSheet("""
+                                        QPushButton {
+                                             background-color: green;
+                                             font-size: 14pt;
+                                             border-radius: 25px;
+                                                    }
+                                             QPushButton:hover {
+                                             background-color: #333333;
+                                                               }
+                                         """)
+        self.download_button.clicked.connect(self.download_statement)
+        self.download_button.setParent(statement_widget)
+
+        self.stacked_widget.addWidget(statement_widget)
+        self.load_user_accounts()
+
+    
        
 
         self.stacked_widget.addWidget(statement_widget) 
+    def load_user_accounts(self):
+        try:
+            cursor = self.db.cursor()
+            #Query for saving accounts
+            cursor.execute("SELECT Account_ID FROM saving_accountdb WHERE Email = %s", (self.current_user_email,))
+            saving_accounts = cursor.fetchall()
+
+
+
+              # Query for Wallet accounts
+            cursor.execute("SELECT Phonenumber FROM my_accountdb WHERE Email = %s", (self.current_user_email,))
+            wallet_accounts = cursor.fetchall()
+
+
+
+        # Clear the dropdown before adding new items
+            self.account_dropdown.clear()
+
+            for account in saving_accounts:
+                self.account_dropdown.addItem(f"Saving Account: {account[0]}")
+        
+            for account in wallet_accounts:
+                self.account_dropdown.addItem(f"My Wallet: {account[0]}")
+        except mysql.connector.Error as e:
+
+            QMessageBox.critical(self, "Database Error", f"Error loading accounts: {e}")
+        finally:
+            cursor.close()    
+            
+
+    def generate_statement(self):
+        account_id = self.account_dropdown.currentText().split(": ")[1]
+        from_date = self.from_date_picker.date().toString("yyyy-MM-dd")
+        to_date = self.to_date_picker.date().toString("yyyy-MM-dd")
+
+        from_date_time = f"{from_date} 00:00:00"
+        to_date_time = f"{to_date} 23:59:59"
+
+
+        print(f"Account ID: {account_id}")
+        print(f"From Date: {from_date}")
+        print(f"To Date: {to_date}")
+
+        try:
+            cursor = self.db.cursor()
+        
+            query = """
+                SELECT Date, From_Account, To_Account, Debit, Credit, Transaction_ID, Type_
+                FROM transactionsdb
+                WHERE (From_Account_ID = %s OR To_Account_ID = %s) AND Date BETWEEN %s AND %s
+                ORDER BY Date DESC
+                     """
+            
+            print(f"Executing query: {query}")
+            print(f"With parameters: ({account_id}, {account_id}, {from_date_time}, {to_date_time})")
+
+            cursor.execute(query, (account_id, account_id, from_date_time, to_date_time))
+            transactions = cursor.fetchall()
+
+            print(f"Fetched Transactions: {transactions}")
+
+            statement = "<table border='1'>"
+            statement += "<tr><th>Date</th><th>From(Account)</th><th>To(Account)</th><th>Debit</th><th>Credit</th><th>Transaction ID</th><th>Type</th></tr>"
+
+            for transaction in transactions:
+                date, from_account, to_account, debit, credit, transaction_id, type_ = transaction
+                statement += f"<tr><td>{date}</td><td>{from_account}</td><td>{to_account}</td><td>{debit:.2f}</td><td>{credit:.2f}</td><td>{transaction_id}</td><td>{type_}</td></tr>"
+
+                
+                self.statement_text_area.setHtml(statement)
+                
+          
+        except mysql.connector.Error as e:
+            self.statement_text_area.setHtml(f"Error generating statement: {e}")
+
+        finally:
+            cursor.close()        
+
+     
+    def download_statement(self):
+        statement = self.statement_text_area.toPlainText()
+        if not statement:
+            QMessageBox.warning(self, "Download Error", "No statement to download. Please generate a statement first.")
+            return
+
+        file_dialog = QFileDialog(self)
+        file_dialog.setAcceptMode(QFileDialog.AcceptSave)
+        file_dialog.setNameFilter("CSV Files (*.csv)")
+        file_dialog.setDefaultSuffix("csv")
+    
+        if file_dialog.exec_():
+            file_path = file_dialog.selectedFiles()[0]
+            try:
+                with open(file_path, 'w', newline='') as file:
+                    writer = csv.writer(file)
+                    writer.writerow(["Date", "From Account", "To Account", "Debit", "Credit", "Transaction ID", "Type"])
+                    lines = statement.split('\n')[2:]
+                    for line in lines:
+                        if line.strip():
+                            writer.writerow(line.split('\t'))
+                            QMessageBox.information(self, "Download Complete", f"Statement successfully downloaded to {file_path}")
+            except Exception as e:
+                QMessageBox.critical(self, "Download Error", f"Error downloading statement: {e}")        
 
 
 
@@ -3069,6 +3252,7 @@ to successfully change your Email Address""") # Print the generated OTP
     def perform_transaction2(self):    
         receiver_acc = self.receiver_acc_input.text()
         transfer_amount4 = self.transfer4_amount_input.text()
+        
 
         transfer_amount4 = Decimal(transfer_amount4)
 
@@ -3132,7 +3316,22 @@ to successfully change your Email Address""") # Print the generated OTP
             self.db.commit()
 
             QMessageBox.information(self, "Success", f"Transfer of Gh¢ {transfer_amount4:.2f} To  {receiver_acc},  completed successfully.")
+            from_account = "Wallet"
+            to_account = "Saving Acount"
+            from_account_id = self.phone_number
+            Type = "Internal"
+            
+             # Generate unique transaction ID
+            transaction_id = str(uuid.uuid4())
+            transaction_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+       
+               # Insert the transaction record
+            cursor.execute("""
+                         INSERT INTO transactionsdb (Date, From_Account, To_Account, From_Account_ID, Debit, To_Account_ID, Credit, Transaction_ID, Type_)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (transaction_date, from_account, to_account, from_account_id, transfer_amount4, receiver_acc, transfer_amount4, transaction_id, Type,))
 
+            self.db.commit()
             
 
         # Clear the input fields after successful transfer
@@ -3627,7 +3826,22 @@ to successfully change your Email Address""") # Print the generated OTP
 
             QMessageBox.information(self, "Success", f"Transfer of Gh¢ {transfer_amount1:.2f} from  {sender_acc1} to Wallet,  completed successfully.")
 
+            from_account = "Saving Account"
+            to_account = "Wallet"
+            to_account_id = self.phone_number
+            Type = "Internal"
             
+             # Generate unique transaction ID
+            transaction_id = str(uuid.uuid4())
+            transaction_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+       
+               # Insert the transaction record
+            cursor.execute("""
+                         INSERT INTO transactionsdb (Date, From_Account, To_Account, From_Account_ID, Debit, To_Account_ID, Credit, Transaction_ID, Type_)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (transaction_date, from_account, to_account, sender_acc1, transfer_amount1, to_account_id, transfer_amount1, transaction_id, Type,))
+
+            self.db.commit()
 
         # Clear the input fields after successful transfer
             self.transfer_amount1_input.clear()
@@ -3857,7 +4071,23 @@ to successfully change your Email Address""") # Print the generated OTP
             self.db.commit()
 
             QMessageBox.information(self, "Success", f"Transfer of Gh¢ {transfer_amount3:.2f} from mobile wallet to Account completed successfully.")
+    
+            from_account = "Mobile Wallet"
+            to_account = "Wallet"
+            to_account_id = self.phone_number
+            Type = "Internal"
+            
+             # Generate unique transaction ID
+            transaction_id = str(uuid.uuid4())
+            transaction_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+       
+               # Insert the transaction record
+            cursor.execute("""
+                         INSERT INTO transactionsdb (Date, From_Account, To_Account, From_Account_ID, Debit, To_Account_ID, Credit, Transaction_ID, Type_)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (transaction_date, from_account, to_account, mobile_number3, transfer_amount3, to_account_id, transfer_amount3, transaction_id, Type,))
 
+            self.db.commit()
             
 
         # Clear the input fields after successful transfer
@@ -4103,7 +4333,22 @@ to successfully change your Email Address""") # Print the generated OTP
 
             QMessageBox.information(self, "Success", f"Transfer of Gh¢ {transfer_amount7:.2f} To  {receiver_acc3},  completed successfully.")
 
+            from_account = "Wallet"
+            to_account = "Inter-Wallet"
+            from_account_id = self.phone_number
+            Type = "External"
             
+             # Generate unique transaction ID
+            transaction_id = str(uuid.uuid4())
+            transaction_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+       
+               # Insert the transaction record
+            cursor.execute("""
+                         INSERT INTO transactionsdb (Date, From_Account, To_Account, From_Account_ID, Debit, To_Account_ID, Credit, Transaction_ID, Type_)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (transaction_date, from_account, to_account, from_account_id, transfer_amount7, receiver_acc3, transfer_amount7, transaction_id, Type,))
+
+            self.db.commit()
 
         # Clear the input fields after successful transfer
             self.transfer7_amount_input.clear()
@@ -4357,7 +4602,22 @@ to successfully change your Email Address""") # Print the generated OTP
             
             QMessageBox.information(self, "Success", f"Transfer of Gh¢ {transfer_amount6:.2f} To  {receiver_acc2},  completed successfully.")
 
+            from_account = "Wallet"
+            to_account = "Mobile Wallet"
+            from_account_id = self.phone_number
+            Type = "External"
             
+             # Generate unique transaction ID
+            transaction_id = str(uuid.uuid4())
+            transaction_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+       
+               # Insert the transaction record
+            cursor.execute("""
+                         INSERT INTO transactionsdb (Date, From_Account, To_Account, From_Account_ID, Debit, To_Account_ID, Credit, Transaction_ID, Type_)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (transaction_date, from_account, to_account, from_account_id, transfer_amount6, receiver_acc2, transfer_amount6, transaction_id, Type,))
+
+            self.db.commit()
 
         # Clear the input fields after successful transfer
             self.transfer6_amount_input.clear()
