@@ -1,0 +1,21 @@
+Date,From Account,To Account,Debit,Credit,Transaction ID,Type
+From(Account)
+To(Account)
+Debit
+Credit
+Transaction ID
+Type
+2024-05-21 02:08:40
+Mobile Wallet
+Wallet
+200.00
+200.00
+7d964197-0a8c-4a29-b4a1-8b994032afcb
+Internal
+2024-05-21 02:05:35
+Mobile Wallet
+Wallet
+500.00
+500.00
+d01e1cf5-cc6a-45bc-bf12-563d471ac62e
+Internal

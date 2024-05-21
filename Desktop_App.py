@@ -16,7 +16,7 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QIcon
 from PyQt5.QtGui import QPixmap,QPalette,QBrush,QPen,QPainter, QColor
 from PyQt5.QtCore import QRectF, QPoint, QObject,pyqtSignal, Qt, QPropertyAnimation, QRect, QTimer, QSize,QDate ,QCalendar ,QDateTime# Qt core manages the alignment, and the Qpropertyanimation, with the Qreact handles the animation
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QVBoxLayout,QFileDialog, QPushButton, QWidget, QLineEdit, QComboBox,QTextEdit, QStyle, QAction, QToolBar,QToolButton, QCheckBox, QMenu, QDateEdit, QMessageBox,QCalendarWidget,QStackedWidget,QFrame,QHBoxLayout
+from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel,QListWidgetItem,QListWidget, QVBoxLayout,QFileDialog, QPushButton, QWidget, QLineEdit, QComboBox,QTextEdit, QStyle, QAction, QToolBar,QToolButton, QCheckBox, QMenu, QDateEdit, QMessageBox,QCalendarWidget,QStackedWidget,QFrame,QHBoxLayout
 
 
 class LoginWindow(QMainWindow):
@@ -402,7 +402,7 @@ class Main1Window(QMainWindow):
 
 
           # Connect the update_home_page signal to a slot in the home page
-        self.update_home_page.connect(self.update_home_page_slot)
+        #self.update_home_page.connect(self.update_home_page_slot)
 
                  # Create a stacked widget to hold multiple pages
 
@@ -667,6 +667,7 @@ class Main1Window(QMainWindow):
 
    
 #Page index 0
+     # Pages
     def home_page(self, db , current_user_email,Firstname):
         self.current_user_email = current_user_email
         self.db = db
@@ -674,35 +675,23 @@ class Main1Window(QMainWindow):
         
         
 
-        home_widget = QWidget()
+        self.home_widget = QWidget()
         self.icon_label = QLabel(self.central_widget)
-        self.setCircularIcon(self.icon_label, "user.png", size = 130, position= (50,10))  # Set your icon path
+        self.setCircularIcon(self.icon_label, "user1.png", size = 130, position= (50,10))  # Set your icon path
         self.layout.addWidget(self.icon_label)
-        self.icon_label.setParent(home_widget)
+        self.icon_label.setParent(self.home_widget)
 
         
-        home_label = QLabel(f"Welcome, {Firstname} ",home_widget)
+        home_label = QLabel(f"Welcome, {Firstname} ",self.home_widget)
         home_label.setGeometry(200,48,500,80)
         home_label.setStyleSheet(
             "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
         home_label.setAlignment(Qt.AlignCenter)
 
-        home1_widget = QWidget()
-        home1_label = QLabel("""
-            <html>
-                <body>
-                    
-                        <div style=' font-size: 30px; font-weight: bold; color: red;'>Transaction</div>
-                      
-                    
-                </body>
-            </html>
-        """, home1_widget)
-        home1_label.setGeometry(50,150,800,500)
-        home1_label.setStyleSheet(
-            "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
-        home1_label.setAlignment(Qt.AlignTop | Qt.AlignLeft)
-        home1_label.setParent(home_widget)
+        transaction_alert = self.transactions()
+
+        
+        
 
         
         self.home2_widget = QWidget()
@@ -717,7 +706,7 @@ class Main1Window(QMainWindow):
             </html>
         """, self.home2_widget)
         self.home2_label.setAlignment(Qt.AlignTop | Qt.AlignLeft)  # Set alignment to top-left
-        self.home2_label.setGeometry(50, 680, 800, 200)
+        self.home2_label.setGeometry(900, 150, 350, 300)
         self.home2_label.setStyleSheet(
             """
             QLabel {
@@ -730,34 +719,20 @@ class Main1Window(QMainWindow):
             """
         )
 
-        self.home2_label.setParent(home_widget)
+        self.home2_label.setParent(self.home_widget)
         
 
-        self.home3_widget = QWidget()
-        self.home3_label = QLabel("""
-            <html>
-                <body>
-                    
-                        <div style=' font-size: 30px; font-weight: bold; color: red;'>Alerts</div>
-                        <div style='text-align:center; font-size: 24px; color: white;'>No Alerts</div>
-                    </div>
-                </body>
-            </html>
-        """, self.home3_widget)
-        self.home3_label.setGeometry(900,150,350,300)
-        self.home3_label.setStyleSheet(
-            "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
-        self.home3_label.setAlignment(Qt.AlignTop | Qt.AlignLeft)
-        self.home3_label.setParent(home_widget)
+        alert = self.alert()
 
-        home4_widget = QWidget()
-        home4_label = QLabel(" <html><p> Home<p></>", home4_widget)
-        home4_label.setGeometry(900,480,350,300)
-        home4_label.setStyleSheet(
-            "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
-        home4_label.setAlignment(Qt.AlignCenter)
-        home4_label.setParent(home_widget)
+        
+        
+        user_info = self.user_info()
+        
+        
 
+        
+
+       
 
         
         logout_button = QPushButton(self)
@@ -793,14 +768,163 @@ class Main1Window(QMainWindow):
 
         logout_button.clicked.connect(self.open_main_window)
 
-        logout_button.setParent(home_widget)
+        logout_button.setParent(self.home_widget)
 
         
         
         
-        self.stacked_widget.addWidget(home_widget)
-        
+        self.stacked_widget.addWidget(self.home_widget)
 
+    def alert (self):    
+        self.alert_widget = QWidget()
+        self.alert_widget.setGeometry(50, 600, 800, 280)
+        self.alert_widget.setStyleSheet("background-color: black; border-radius: 20px; padding: 10px;")
+        self.alert_widget.setParent(self.home_widget)
+
+
+        self.widget_layout =QVBoxLayout(self.alert_widget)
+
+        alert_title = QLabel("Alerts")
+        alert_title.setFont(QFont("Arial", 16, QFont.Bold))
+        alert_title.setStyleSheet("background-color: #333333; color: white; padding: 10px; border-radius: 10px; font-size: 16pt;")
+        self.widget_layout.addWidget(alert_title)
+
+        # Create QListWidget to display transactions
+        self.alert_list = QListWidget()
+        self.alert_list.setStyleSheet("background-color: balck; color: white; padding: 10px; border-radius: 10px; font-size: 11pt")
+        self.widget_layout.addWidget(self.alert_list)
+
+    # Load previous transactions from the database
+        self.load_alert()
+
+    def load_alert(self):
+    # Clear the current transaction list
+        self.alert_list.clear()
+
+    # Fetch transactions from the database
+        cursor = self.db.cursor()
+        cursor.execute("SELECT created_at, message FROM alertdb  WHERE Email = %s ORDER BY created_at DESC LIMIT 5" , (self.current_user_email,))
+        alerts = cursor.fetchall()
+        cursor.close()
+
+    # Add transactions to the transaction list
+        for alert in alerts:
+                created_at, message = alert
+                item_text1 = f"{created_at} - {message}"
+                item1 = QListWidgetItem(item_text1)
+                self.alert_list.addItem(item1)
+
+    def transactions(self):
+        self.transaction_widget = QWidget()
+        self.transaction_widget.setGeometry(50, 150, 800, 400)
+        self.transaction_widget.setStyleSheet("background-color: black; border-radius: 20px; padding: 10px;")
+        self.transaction_widget.setParent(self.home_widget)
+
+
+        self.widget_layout =QVBoxLayout(self.transaction_widget)
+
+        transaction_title = QLabel("Transactions")
+        transaction_title.setFont(QFont("Arial", 16, QFont.Bold))
+        transaction_title.setStyleSheet("background-color: #333333; color: white; padding: 10px; border-radius: 10px; font-size: 16pt;")
+        self.widget_layout.addWidget(transaction_title)
+
+        # Create QListWidget to display transactions
+        self.transaction_list = QListWidget()
+        self.transaction_list.setStyleSheet("background-color: balck; color: white; padding: 10px; border-radius: 10px; font-size: 14pt")
+        self.widget_layout.addWidget(self.transaction_list)
+
+    # Load previous transactions from the database
+        self.load_transactions()
+
+    def load_transactions(self):
+    # Clear the current transaction list
+        self.transaction_list.clear()
+
+    # Fetch transactions from the database
+        cursor = self.db.cursor()
+        cursor.execute("SELECT Date, From_Account, To_Account, Debit, Credit, Transaction_ID, Type_  FROM transactionsdb  WHERE Email = %s ORDER BY Date DESC LIMIT 5" , (self.current_user_email,))
+        transactions = cursor.fetchall()
+        cursor.close()
+
+    # Add transactions to the transaction list
+        for transaction in transactions:
+                date, from_account, to_account, debit, credit, transaction_id, type_ = transaction
+                item_text = f"{date} - {from_account} to {to_account}: {debit if debit else credit} ({type_})"
+                item = QListWidgetItem(item_text)
+                self.transaction_list.addItem(item)
+  
+
+ 
+
+
+
+        
+    def user_info(self):
+        mobile_number = self.phone_number
+        Firstname = self.first_name 
+        Lastname = self.last_name
+
+    # Create the main widget for user info
+        self.user_info_widget = QWidget()
+        self.user_info_widget.setGeometry(900, 480, 350, 300)
+        self.user_info_widget.setStyleSheet("background-color: black; border-radius: 20px; padding: 10px;")
+        self.user_info_widget.setParent(self.home_widget)
+
+    # Layout for user info widget
+        self.widget_layout = QVBoxLayout(self.user_info_widget)
+
+    # User info label
+        user_info_label = QLabel("User Info")
+        user_info_label.setFont(QFont("Arial", 16, QFont.Bold))
+        user_info_label.setStyleSheet("background-color: #333333; color: white; padding: 10px; border-radius: 10px; font-size: 16pt;")
+        self.widget_layout.addWidget(user_info_label)
+
+    # Check if the user has a PIN
+        cursor = self.db.cursor()
+        cursor.execute("SELECT PIN FROM my_accountdb WHERE Email = %s", (self.current_user_email,))
+        result = cursor.fetchone()
+        cursor.close()
+
+    # Determine which set of labels to use based on whether the PIN is set
+        if result and result[0]:  # PIN is not empty
+            info_labels = [
+            ("Email:", self.current_user_email),
+            ("Wallet:", "Activated"),
+            ("First Name:", Firstname),
+            ("Last Name:", Lastname),
+            ("Mobile Number:", mobile_number)
+            ]
+        else:
+            info_labels = [
+            ("Email:", self.current_user_email),
+            ("Wallet:", "NOT Activated"),
+            ("First Name:", Firstname),
+            ("Last Name:", Lastname),
+            ("Mobile Number:", mobile_number)
+        ]
+
+    # Add the labels to the layout
+        for label_text, value in info_labels:
+            hbox = QHBoxLayout()
+            lbl = QLabel(label_text)
+            lbl.setFont(QFont("Arial", 12, QFont.Bold))
+            lbl.setStyleSheet("color: white;")
+            hbox.addWidget(lbl)
+
+            val = QLabel(value)
+            val.setFont(QFont("Arial", 12))
+            val.setStyleSheet("color: white;")
+            hbox.addWidget(val)
+
+            self.widget_layout.addLayout(hbox)
+
+        return self.user_info_widget
+
+            
+
+
+        
+        
         
         
         
@@ -846,7 +970,7 @@ class Main1Window(QMainWindow):
         label.setPixmap(rounded_pixmap)
         label.setFixedSize(size, size)
         label.move(position[0], position[1])  # Set the position
-        label.setScaledContents(True) 
+        label.setScaledContents(True)
 
     def open_main_window(self):
 
@@ -2509,8 +2633,8 @@ to successfully change your Email Address""") # Print the generated OTP
 
             cursor = self.db.cursor()
             # Insert the user details into the savings_accountdb
-            sql  = "UPDATE saving_accountdb SET FirstName = %s, LastName = %s, Goal = %s WHERE EMAIL = %s"
-            cursor.execute(sql, (f_name, l_name, Goal, email,))
+            sql  = "UPDATE saving_accountdb SET FirstName = %s, LastName = %s, Goal = %s WHERE Account_ID = %s"
+            cursor.execute(sql, (f_name, l_name, Goal, acc_num,))
             self.db.commit()
             cursor.close()
             self.home3_label.setText(f"""
@@ -2682,13 +2806,18 @@ to successfully change your Email Address""") # Print the generated OTP
                 QMessageBox.critical(self, "Database Error", "Database connection not established.")
                 return
             account_id = self.generate_account_id()
+            message = f"Your Account ID for the newly created saving account is {account_id}"
 
             cursor = self.db.cursor()
             # Insert the user details into the savings_accountdb
             sql  = "INSERT INTO saving_accountdb (Email, FirstName, LastName, Account_ID, Goal, Amount) VALUES (%s, %s, %s, %s, %s, %s)"
             cursor.execute(sql, ( email, first_name, last_name, account_id, goal,  Amount,))
             self.db.commit()
+            sql = "INSERT INTO alertdb (message, created_at, Email) VALUES(%s, NOW(), %s)"
+            cursor.execute(sql, (message, self.current_user_email,))
+            self.db.commit()
             cursor.close()
+            self.load_alert()
             self.update_home_page.emit(account_id)
 
         
@@ -3327,10 +3456,10 @@ to successfully change your Email Address""") # Print the generated OTP
        
                # Insert the transaction record
             cursor.execute("""
-                         INSERT INTO transactionsdb (Date, From_Account, To_Account, From_Account_ID, Debit, To_Account_ID, Credit, Transaction_ID, Type_)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (transaction_date, from_account, to_account, from_account_id, transfer_amount4, receiver_acc, transfer_amount4, transaction_id, Type,))
-
+                         INSERT INTO transactionsdb (Date, From_Account, To_Account, From_Account_ID, Debit, To_Account_ID, Credit, Transaction_ID, Type_, Email)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (transaction_date, from_account, to_account, from_account_id, transfer_amount4, receiver_acc, transfer_amount4, transaction_id, Type, self.current_user_email,))
+            self.load_transactions()
             self.db.commit()
             
 
@@ -3837,10 +3966,10 @@ to successfully change your Email Address""") # Print the generated OTP
        
                # Insert the transaction record
             cursor.execute("""
-                         INSERT INTO transactionsdb (Date, From_Account, To_Account, From_Account_ID, Debit, To_Account_ID, Credit, Transaction_ID, Type_)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (transaction_date, from_account, to_account, sender_acc1, transfer_amount1, to_account_id, transfer_amount1, transaction_id, Type,))
-
+                         INSERT INTO transactionsdb (Date, From_Account, To_Account, From_Account_ID, Debit, To_Account_ID, Credit, Transaction_ID, Type_, Email)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (transaction_date, from_account, to_account, sender_acc1, transfer_amount1, to_account_id, transfer_amount1, transaction_id, Type,self.current_user_email,))
+            self.load_transactions()
             self.db.commit()
 
         # Clear the input fields after successful transfer
@@ -4075,7 +4204,7 @@ to successfully change your Email Address""") # Print the generated OTP
             from_account = "Mobile Wallet"
             to_account = "Wallet"
             to_account_id = self.phone_number
-            Type = "Internal"
+            Type = "External"
             
              # Generate unique transaction ID
             transaction_id = str(uuid.uuid4())
@@ -4083,10 +4212,10 @@ to successfully change your Email Address""") # Print the generated OTP
        
                # Insert the transaction record
             cursor.execute("""
-                         INSERT INTO transactionsdb (Date, From_Account, To_Account, From_Account_ID, Debit, To_Account_ID, Credit, Transaction_ID, Type_)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (transaction_date, from_account, to_account, mobile_number3, transfer_amount3, to_account_id, transfer_amount3, transaction_id, Type,))
-
+                         INSERT INTO transactionsdb (Date, From_Account, To_Account, From_Account_ID, Debit, To_Account_ID, Credit, Transaction_ID, Type_, Email)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (transaction_date, from_account, to_account, mobile_number3, transfer_amount3, to_account_id, transfer_amount3, transaction_id, Type,self.current_user_email,))
+            self.load_transactions()
             self.db.commit()
             
 
@@ -4344,10 +4473,10 @@ to successfully change your Email Address""") # Print the generated OTP
        
                # Insert the transaction record
             cursor.execute("""
-                         INSERT INTO transactionsdb (Date, From_Account, To_Account, From_Account_ID, Debit, To_Account_ID, Credit, Transaction_ID, Type_)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (transaction_date, from_account, to_account, from_account_id, transfer_amount7, receiver_acc3, transfer_amount7, transaction_id, Type,))
-
+                         INSERT INTO transactionsdb (Date, From_Account, To_Account, From_Account_ID, Debit, To_Account_ID, Credit, Transaction_ID, Type_, Email)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (transaction_date, from_account, to_account, from_account_id, transfer_amount7, receiver_acc3, transfer_amount7, transaction_id, Type,self.current_user_email,))
+            self.load_transactions()
             self.db.commit()
 
         # Clear the input fields after successful transfer
@@ -4613,10 +4742,10 @@ to successfully change your Email Address""") # Print the generated OTP
        
                # Insert the transaction record
             cursor.execute("""
-                         INSERT INTO transactionsdb (Date, From_Account, To_Account, From_Account_ID, Debit, To_Account_ID, Credit, Transaction_ID, Type_)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (transaction_date, from_account, to_account, from_account_id, transfer_amount6, receiver_acc2, transfer_amount6, transaction_id, Type,))
-
+                         INSERT INTO transactionsdb (Date, From_Account, To_Account, From_Account_ID, Debit, To_Account_ID, Credit, Transaction_ID, Type_, Email)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s. %s)
+            """, (transaction_date, from_account, to_account, from_account_id, transfer_amount6, receiver_acc2, transfer_amount6, transaction_id, Type, self.current_user_email,))
+            self.load_transactions()
             self.db.commit()
 
         # Clear the input fields after successful transfer
