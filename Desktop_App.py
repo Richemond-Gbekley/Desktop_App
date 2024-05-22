@@ -493,7 +493,7 @@ class Main1Window(QMainWindow):
 
         Home_button = QPushButton("Dashboard", self.frame)
        
-        Home_button.setGeometry(10, 100, 150, 30)
+        Home_button.setGeometry(10, 150, 150, 30)
         self.set_button_icon0(Home_button, "home.png")  # Set button icon
         Home_button.setStyleSheet("""
                              QPushButton {
@@ -510,7 +510,7 @@ class Main1Window(QMainWindow):
         Home_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(0))  # Switch to home page
 
         account_button = QPushButton("Account", self.frame)
-        account_button.setGeometry(-7,180,150,30)
+        account_button.setGeometry(-7,230,150,30)
         self.set_button_icon1(account_button, "user.png")
         account_button.setStyleSheet("""
                              QPushButton {
@@ -528,7 +528,7 @@ class Main1Window(QMainWindow):
         
 
         investment_button = QPushButton("Investment", self.frame)
-        investment_button.setGeometry(10,260,150,30)
+        investment_button.setGeometry(10,310,150,30)
         self.set_button_icon2(investment_button, "investment.png")
         investment_button.setStyleSheet("""
                              QPushButton {
@@ -546,7 +546,7 @@ class Main1Window(QMainWindow):
 
 
         savings_button = QPushButton("Savings", self.frame)
-        savings_button.setGeometry(-7,340,150,30)
+        savings_button.setGeometry(-7,390,150,30)
         self.set_button_icon3(savings_button, "piggy-bank.png")
         savings_button.setStyleSheet("""
                              QPushButton {
@@ -565,7 +565,7 @@ class Main1Window(QMainWindow):
 
         
         transfer_button = QPushButton("Transfer", self.frame)
-        transfer_button.setGeometry(-7,420,150,30)
+        transfer_button.setGeometry(-7,470,150,30)
         self.set_button_icon4(transfer_button, "money.png")
         transfer_button.setStyleSheet("""
                              QPushButton {
@@ -584,7 +584,7 @@ class Main1Window(QMainWindow):
 
 
         loan_button = QPushButton("Loan", self.frame)
-        loan_button.setGeometry(-25,500,150,30)
+        loan_button.setGeometry(-25,550,150,30)
         self.set_button_icon5(loan_button, "payment.png")
         loan_button.setStyleSheet("""
                              QPushButton {
@@ -603,7 +603,7 @@ class Main1Window(QMainWindow):
 
 
         profile_button = QPushButton("Profile", self.frame)
-        profile_button.setGeometry(-15,580,150,30)
+        profile_button.setGeometry(-15,630,150,30)
         self.set_button_icon6(profile_button, "user.png")
         profile_button.setStyleSheet("""
                              QPushButton {
@@ -693,33 +693,8 @@ class Main1Window(QMainWindow):
         
         
 
-        
-        self.home2_widget = QWidget()
-        self.home2_label = QLabel("""
-            <html>
-                <body>
-                    
-                        <div style=' font-size: 30px; font-weight: bold; color: red;'>Accounts</div>
-                        <div style='text-align:center; font-size: 24px; color: white;'>No Account Created</div>
-                    </div>
-                </body>
-            </html>
-        """, self.home2_widget)
-        self.home2_label.setAlignment(Qt.AlignTop | Qt.AlignLeft)  # Set alignment to top-left
-        self.home2_label.setGeometry(900, 150, 350, 300)
-        self.home2_label.setStyleSheet(
-            """
-            QLabel {
-                background-color: black;
-                color: red;
-                font-size: 24px;
-                padding: 20px;
-                border-radius: 40px;
-            }
-            """
-        )
-
-        self.home2_label.setParent(self.home_widget)
+        # Calendar Widget
+        calendar = self.calendar()
         
 
         alert = self.alert()
@@ -774,6 +749,76 @@ class Main1Window(QMainWindow):
         
         
         self.stacked_widget.addWidget(self.home_widget)
+
+    def calendar(self) :
+        self.calendar_section_widget = QWidget()
+        self.calendar_section_widget.setGeometry(900, 150, 350, 300)
+        self.calendar_section_widget.setStyleSheet("background-color: black; border-radius: 20px; padding: 10px;")
+        self.calendar_section_widget.setParent(self.home_widget)
+        #calendar_layout = QVBoxLayout(self.calendar_section_widget)
+
+
+        self.widget_layout =QVBoxLayout(self.calendar_section_widget)
+
+
+        # Calendar title label
+        calendar_title = QLabel("Calendar")
+        calendar_title.setFont(QFont("Arial", 16, QFont.Bold))
+        calendar_title.setStyleSheet("background-color: #333333; color: white; padding: 10px; border-radius: 10px; font-size: 16pt;")
+        self.widget_layout.addWidget(calendar_title)
+
+         # Calendar widget
+        calendar = QCalendarWidget()
+        #calendar.setGridVisible(True)
+        calendar.setStyleSheet("""
+        QCalendarWidget {
+            background-color: black;
+            color: white;
+            border-radius: 10px;
+        }
+        QCalendarWidget QToolButton {
+            color: white;
+        }
+        QCalendarWidget QToolButton:hover {
+            color: yellow;
+        }
+        QCalendarWidget QMenu {
+            background-color: black;
+            color: white;
+        }
+        QCalendarWidget QWidget {
+            alternate-background-color: black;
+            color: white;
+        }
+        QCalendarWidget QAbstractItemView:enabled {
+            background-color: black;
+            selection-background-color: darkgray;
+            selection-color: black;
+            color: white;
+        }
+        QCalendarWidget QAbstractItemView:disabled {
+            color: gray;
+        }
+        QCalendarWidget QAbstractItemView:focus {
+            color: yellow;
+        }
+        QCalendarWidget QTableView {
+            border: 1px solid #8f8f91;
+            border-top: 0;
+            gridline-color: gray;
+        }
+        QCalendarWidget QHeaderView::section {
+            background-color: #333333;
+            color: white;
+            padding: 5px;
+            border: 1px solid gray;
+        }
+    """)
+        self.widget_layout.addWidget(calendar)
+
+        
+        
+
 
     def alert (self):    
         self.alert_widget = QWidget()
@@ -1615,10 +1660,12 @@ class Main1Window(QMainWindow):
         self.notification_label4.hide()
 
         try:
+             
              if self.db is None:
                 QMessageBox.critical(self, "Database Error", "Database connection not established.")
                 return
              cursor = self.db.cursor()
+             message = "Congratulations, you've successfully activated your wallet"
              new_pin = self.new_pin_input.text()
              hash_new_pin = hashlib.sha256(new_pin.encode()).hexdigest()
              print(new_pin)
@@ -1632,6 +1679,11 @@ class Main1Window(QMainWindow):
              print(hash_new_pin + " Update pin its still the created pin")
                                 
              self.db.commit()
+             sql = "INSERT INTO alertdb (message, created_at, Email) VALUES(%s, NOW(), %s)"
+             cursor.execute(sql, (message, self.current_user_email,))
+             self.db.commit()
+             cursor.close()
+             self.load_alert()
             
              QMessageBox.information(self, "Pin Set", "You have successfully Activated Your Account")
              self.main_window = MainWindow()
@@ -6894,7 +6946,7 @@ to successfully change your Phone Number""")  # Print the generated OTP
             self.clear_otp_input2()
             self.otp_generated2
             self.otp_generated2 = False
-            QMessageBox.warning(self, "OTP Expired", "Your OTP has expired. Please request a new OTP.")
+            QMessageBox.warning(self, "OTP Expired", "Your OTP has expired. Please request a new OTP."),
          
                 
 
@@ -7228,7 +7280,7 @@ class RegisterWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.SessionId = str(uuid.uuid4())  # Generate a unique session ID
-        self.account_type = ""
+        
         self.first_name = ""
         self.last_name = ""
         self.dob = ""
@@ -7267,28 +7319,6 @@ class RegisterWindow(QMainWindow):
 
 
 
-        # Line edit for account selection
-        self.account_line_edit = QLineEdit(self)
-        self.account_line_edit.setGeometry(575, 225, 350, 50)
-        self.account_line_edit.setPlaceholderText("Select account type...")
-        self.account_line_edit.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
-        self.account_line_edit.setReadOnly(True)
-        self.account_line_edit.setCursorPosition(0)
-
-        # Add dropdown arrow button
-        self.dropdown_button = QToolButton(self)
-        self.dropdown_button.setText("▼")
-        self.dropdown_button.setStyleSheet("font-size: 16px; color : black; border : none")
-        self.dropdown_button.setGeometry(900, 225, 20, 50)
-        self.dropdown_button.clicked.connect(self.show_menu)
-
-
-        # Create a menu for account selection
-        self.menu = QMenu(self)
-        self.menu.addAction("Savings Account").triggered.connect(lambda: self.update_account_line_edit("Savings Account"))
-        self.menu.addAction("Loan Account").triggered.connect(lambda: self.update_account_line_edit("Loan Account"))
-        self.menu.addAction("Investment Account").triggered.connect(lambda: self.update_account_line_edit("Investment Account"))
-        self.menu.addAction("").triggered.connect (lambda: self.update_account_line_edit(""))
 
         # Create a line edit for the First Name input field
         self.first_name_input = QLineEdit(self)
@@ -7457,10 +7487,7 @@ class RegisterWindow(QMainWindow):
 
     def validate_inputs(self):
         # Check if any of the required fields are empty
-        if self.account_line_edit.text().strip() == "":
-            self.notification_label.setText("Please select an account type.")
-            self.notification_label.show()
-            return
+       
 
         if self.first_name_input.text().strip() == "":
             self.notification_label.setText("Please enter your first name.")
@@ -7575,13 +7602,6 @@ class RegisterWindow(QMainWindow):
 
 
 
-
-    def update_account_line_edit(self, account_type):
-        self.account_line_edit.setText(account_type)
-    def show_menu(self):
-        self.menu.exec_(self.dropdown_button.mapToGlobal(QtCore.QPoint(0, self.dropdown_button.height())))
-
-
     def load_image(self):
         pixmap = QPixmap(self.image_paths[0])  # Assuming there's only one image in the list
         self.image_label.setPixmap(pixmap)
@@ -7590,13 +7610,13 @@ class RegisterWindow(QMainWindow):
     def open_continue_window(self):
       # Check if SessionId is available before creating the continueWindow instance
         if hasattr(self, 'SessionId') and self.SessionId:
-            self.continue_window = continueWindow(self.SessionId, self.account_type,self.first_name,self.last_name,self.dob,self.gender,self.phone_number,self.email)
+            self.continue_window = continueWindow(self.SessionId,self.first_name,self.last_name,self.dob,self.gender,self.phone_number,self.email)
             self.continue_window.show()
         else:
             QMessageBox.critical(self, "Error", "SessionId not available.")
 
         # Retrieve user details from input fields
-        account_type = self.account_line_edit.text()
+        
         first_name = self.first_name_input.text()
         last_name = self.last_name_input.text()
         dob= self.dob_input.text()
@@ -7633,8 +7653,8 @@ class RegisterWindow(QMainWindow):
                                         "The user is already registered. Please login.")
             else:
                 # Insert the new user into the database using a parameterized query
-                insert_query = "INSERT INTO registerdb (SessionId, Accounttype, Firstname, Lastname, Dob, Gender, Email, Phonenumber) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
-                user_data = (self.SessionId, account_type, first_name, last_name, dob, gender, email, phone_number)
+                insert_query = "INSERT INTO registerdb (SessionId, Firstname, Lastname, Dob, Gender, Email, Phonenumber) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
+                user_data = (self.SessionId, first_name, last_name, dob, gender, email, phone_number)
                # cursor.execute(insert_query, user_data)
                 #db.commit()
                 cursor.close()
@@ -7645,7 +7665,7 @@ class RegisterWindow(QMainWindow):
                 self.close()
 
             # Open the next window (ContinueWindow)
-                self.continue_window = continueWindow(SessionId= self.SessionId,account_type=account_type, first_name=first_name, last_name= last_name, dob= dob, gender=gender, email=email, phone_number=phone_number)
+                self.continue_window = continueWindow(SessionId= self.SessionId, first_name=first_name, last_name= last_name, dob= dob, gender=gender, email=email, phone_number=phone_number)
                 self.continue_window.show()
 
         except mysql.connector.Error as e:
@@ -7658,12 +7678,11 @@ class RegisterWindow(QMainWindow):
     
 
 class continueWindow(QMainWindow):
-    def __init__(self, SessionId, account_type, first_name, last_name,  dob, gender, email ,phone_number):
+    def __init__(self, SessionId, first_name, last_name,  dob, gender, email ,phone_number):
         super().__init__()
         self.setWindowTitle("Continue Window")
         self.setGeometry(100, 100, 1500, 900)
         self.SessionId = SessionId
-        self.account_type = account_type  # Inherit account_type from parent class
         self.first_name = first_name  # Inherit first_name from parent class
         self.last_name = last_name  # Inherit last_name from parent class
         self.gender = gender  # Inherit gender from parent class
@@ -7744,6 +7763,7 @@ class continueWindow(QMainWindow):
         self.password_input.textChanged.connect(self.validate_password)
         self.password_input.editingFinished.connect(self.reset_password_input_style)
         self.confirm_password_input.textChanged.connect(self.validate_confirmation_password)
+        self.confirm_password_input.editingFinished.connect(self.reset_confirm_password_input_style)
 
         # Create QLabel for notification messages
         self.notification_label = QLabel("", self)
@@ -7918,6 +7938,11 @@ class continueWindow(QMainWindow):
         # Reset the stylesheet when the user leaves the input field
         self.password_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
 
+    @pyqtSlot()
+    def reset_confirm_password_input_style(self):
+        self.confirm_password_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+
+
 
     def open_login_window(self):
         self.login_window = LoginWindow()
@@ -7947,7 +7972,7 @@ class continueWindow(QMainWindow):
     # Check if SessionId is available before creating the continueWindow instance
         if hasattr(self, 'SessionId') and self.SessionId:
             self.continue_window = continueWindow(
-                self.SessionId, self.account_type, self.first_name, self.last_name,
+                self.SessionId, self.first_name, self.last_name,
                 self.dob, self.gender, self.phone_number, self.email
         )
             
@@ -7973,10 +7998,10 @@ class continueWindow(QMainWindow):
                                                 "The password is already used. Please use another password.")
                     else:
                         # Insert the hashed password into the database
-                        insert_query="INSERT INTO registerdb (SessionId,Accounttype, Firstname, Lastname, Dob, Gender, Phonenumber,Email, Password, PasswordHash) VALUES (%s, %s, %s, %s, %s, %s, %s, %s,%s,%s )" 
-                        new_user_data = (self.SessionId,self.account_type, self.first_name, self.last_name, self.dob, self.gender, self.email, password_input, hashed_password)  
+                        insert_query="INSERT INTO registerdb (SessionId, Firstname, Lastname, Dob, Gender, Phonenumber,Email, Password, PasswordHash) VALUES (%s, %s, %s, %s, %s, %s, %s,%s,%s )" 
+                        new_user_data = (self.SessionId, self.first_name, self.last_name, self.dob, self.gender, self.email, password_input, hashed_password)  
                         #update_query = "UPDATE registerdb SET column1 = %s, column2 = %s, ... WHERE SessionId = %s"
-                        new_user_data = (self.SessionId, self.account_type, self.first_name, self.last_name, self.dob, self.gender, self.phone_number, self.email, password_input,hashed_password)   
+                        new_user_data = (self.SessionId, self.first_name, self.last_name, self.dob, self.gender, self.phone_number, self.email, password_input,hashed_password)   
                         
         # Execute the update query with the complete user data and session ID
 
@@ -8036,7 +8061,566 @@ class Forgot_PasswordWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle(" Forgot Password Window")
-        self.setGeometry(100, 100, 900, 900)
+        self.setGeometry(100, 100, 1500, 900)
+
+        self.db = self.create_db_connection()  # Initialize db attribute during object creation
+
+        
+        
+
+        # Create central widget and layout
+        self.central_widget = QWidget()
+        self.setCentralWidget(self.central_widget)
+        self.layout = QVBoxLayout(self.central_widget)
+
+        # Create a QLabel to hold the image
+        self.image_label = QLabel(self.central_widget)
+        self.image_label.setGeometry(0, 0, 1500, 900)
+
+        # Loading a list of images
+        self.image_paths = ["desk.jpg"]
+
+        # Load intial image
+        self.load_image()
+
+           # Label for "WELCOME"
+        self.welcome_label = QLabel("<html><p>Forgot My</><p> Password </>", self)
+        label_height= 200  # Adjust the width of the label as needed
+        label_width = 900
+        # label_x = (self.width() - label_width) // 2  # Center the label horizontally
+        # label_y = 20
+        self.welcome_label.setGeometry(300, 10, label_width, label_height)
+        self.welcome_label.setStyleSheet(
+            "background-color: black; color: white; padding: 20px; border-radius: 20px; font-size: 18pt;")
+        self.welcome_label.setAlignment(Qt.AlignCenter)
+
+        # Create a line edit for the email input field
+        self.email_input = QLineEdit(self)
+        self.email_input.setGeometry(575, 280, 350, 50)  # Adjust the position and size of the input field
+        # Set placeholder text for the email input field
+        self.email_input.setPlaceholderText(" Enter Current Email ")
+        # Apply styling to the email input field
+        self.email_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+        # Enable the clear button to clear the input
+        self.email_input.setClearButtonEnabled(True)
+        # Set an icon for the input field
+        icon = QIcon("message.png")  # Replace "icon.png" with the path to your icon file
+        self.email_input.addAction(icon, QLineEdit.LeadingPosition)
+
+        # Connect textChanged signal to validate_email slot
+        self.email_input.textChanged.connect(self.validate_email)
+        self.email_input.editingFinished.connect(self.reset_email_input_style)
+
+        # Create a line edit for password input field
+        self.password_input = QLineEdit(self)
+        self.password_input.setGeometry(575, 360, 350, 50)
+        # Set placeholder text for the password input field
+        self.password_input.setPlaceholderText("Enter New Password")
+        # Appply styling to the password input field
+        self.password_input.setStyleSheet("border-radius: 25; padding : 10px; font-size: 16px; ")
+        # Enable the clear button to the clear input
+        self.password_input.setClearButtonEnabled(True)
+        # Set an icon for the input field
+        icon = QIcon("padlock.png")
+        self.password_input.addAction(icon, QLineEdit.LeadingPosition)
+        self.password_input.setEchoMode(QLineEdit.Password)
+        self.password_input.textChanged.connect(self.validate_password)
+        self.password_input.editingFinished.connect(self.reset_password_input_style)
+
+         # Create checkbox to toggle password visibility
+        self.show_password_checkbox = QCheckBox("Show Password", self)
+        self.show_password_checkbox.setStyleSheet("color: black; font-size : 16px")
+        self.show_password_checkbox.setGeometry(570, 415, 200, 30)
+        self.show_password_checkbox.stateChanged.connect(self.toggle_password_visibility)
+
+        # Create a line edit for confirming password input field
+        self.confirm_password_input = QLineEdit(self)
+        self.confirm_password_input.setGeometry(575, 455, 350, 50)
+        self.confirm_password_input.setPlaceholderText("Confirm New Password")
+        self.confirm_password_input.setStyleSheet("border-radius: 25; padding : 10px; font-size: 16px; ")
+        self.confirm_password_input.setClearButtonEnabled(True)
+        icon = QIcon("padlock.png")
+        self.confirm_password_input.addAction(icon, QLineEdit.LeadingPosition)
+        self.confirm_password_input.setEchoMode(QLineEdit.Password)
+        self.confirm_password_input.textChanged.connect(self.validate_confirmation_password)
+        self.confirm_password_input.editingFinished.connect(self.reset_confirm_password_input_style)
+
+
+
+       
+
+         # Create checkbox to toggle password visibility for confirm password
+        self.show_confirm_password_checkbox = QCheckBox("Show Password", self)
+        self.show_confirm_password_checkbox.setStyleSheet("color: black; font-size: 16px")
+        self.show_confirm_password_checkbox.setGeometry(570, 510, 200, 30)
+        self.show_confirm_password_checkbox.stateChanged.connect(self.toggle_confirm_password_visibility)
+
+        
+        
+
+        # Create QLabel for notification messages
+        self.notification_label = QLabel("", self)
+        self.notification_label.setGeometry(575, 600, 600, 50)
+        self.notification_label.setStyleSheet("color: red; font-size: 25px;")
+
+        #login
+
+        self.login_button = QPushButton("login", self)
+        button_width = 300  # Adjust the width of the button as needed
+        button_x = (self.width() - button_width) // 2  # Center the button horizontally
+        self.login_button.setGeometry(button_x, 800, button_width, 70)
+        self.login_button.setStyleSheet("""
+                     QPushButton {
+                     background-color: blue;
+                      font-size: 18pt; 
+                      border-radius: 35px;
+                      }
+                       QPushButton:hover{
+                          background-color:brown
+                      }
+                  """)
+        self.login_button.clicked.connect(self.open_login_window)
+
+
+                #Save and Submit
+
+        self.save_and_submit_button = QPushButton("Save and Submit", self)
+        button_width = 300  # Adjust the width of the button as needed
+        button_x = (self.width() - button_width) // 2  # Center the button horizontally
+        self.save_and_submit_button.setGeometry(button_x, 700, button_width, 70)
+        self.save_and_submit_button.setStyleSheet("""
+                     QPushButton {
+                     background-color: blue;
+                      font-size: 18pt; 
+                      border-radius: 35px;
+                      }
+                       QPushButton:hover{
+                          background-color:brown
+                      }
+                  """)
+        self.save_and_submit_button.clicked.connect(self.change_password)
+
+        self.regenerate_otp_button = QPushButton(self)
+        self.regenerate_otp_button.setIcon(QIcon("refresh-page-option.png"))  # Set the icon for the button
+        self.regenerate_otp_button.setToolTip("Regenerate OTP")  # Optional tooltip for the button
+        # Adjust the position and size of the button as needed
+        self.regenerate_otp_button.setGeometry(935, 500, 40, 40)
+        self.regenerate_otp_button.setStyleSheet("""
+                     QPushButton {
+                     background-color: blue;
+                      font-size: 18pt; 
+                      border-radius: 35px;
+                      }
+                       QPushButton:hover{
+                          background-color:#333333
+                      }
+                  """)
+        self.regenerate_otp_button.hide()
+        self.regenerate_otp_button.clicked.connect(self.generate_otp)  # Connect the clicked signal
+        
+        
+     
+
+        self.otp_generated = False
+        self.otp = ""
+
+        #Create a QLabel for the information display 
+        
+        self.info_label = QLabel("<html><p>Enter the OTP....You have 3 minutes<p></html> ", self)
+        self.info_label.setAlignment(Qt.AlignCenter)
+        self.info_label.setGeometry(575,360,400,40)
+        self.info_label.setStyleSheet("background-color: black; color: white; padding: 10px; border-radius: 100px; font-size: 10pt;")
+        self.info_label.hide() # Hide the info label initially
+        
+
+        #create a container widget for the otp input
+        self.container = QWidget(self)
+        self.container.setGeometry(575,400,400,100)
+        self.container.setStyleSheet("background-color: blue; border-radius: 5px; padding: 5px;")
+        self.container.hide()
+        
+
+        # Create a QVBoxLayout for the container
+        self.container_layout = QVBoxLayout(self.container)
+        self.container_layout.setContentsMargins(0, 0, 0, 0)  # No margins
+       # self.container_layout.setParent(email_widget)
+
+
+       
+
+        #Create a QHBoxlayout for the OTP boxes 
+        self.layout = QHBoxLayout()
+        self.layout.setContentsMargins(10,10,10,10) #set Margins
+      #  self.layout.setParent(email_widget)
+
+        #Create Six QLineEDIT Boxes for the otp
+        self.otp_boxes = []
+        for _ in range(6):
+            otp_box = QLineEdit(self.container)
+            otp_box.setFixedSize(50, 50)  # Set fixed size for each box
+            otp_box.setMaxLength(1)  # Limit input to one character
+            otp_box.setAlignment(Qt.AlignCenter)  # Center align text
+            otp_box.setStyleSheet(
+                "background-color: white; border: 1px solid black; border-radius: 10px; font-size: 18px;")
+            self.layout.addWidget(otp_box)
+            self.otp_boxes.append(otp_box)
+             # Connect textChanged signal to handle_otp_input slot
+            otp_box.textChanged.connect(self.handle_otp_input)
+
+
+        self.container_layout.addLayout(self.layout)
+
+
+           # Create a QLabel for time remaining display (initially hidden)
+        
+        self.timer_label = QLabel("<html><p>Time remaining....180 seconds<p></html> ", self)
+        self.timer_label.setAlignment(Qt.AlignCenter)
+        self.timer_label.setGeometry(575,500,360,40)
+        self.timer_label.setStyleSheet("background-color: black; color: white; padding: 10px; border-radius: 100px; font-size: 10pt;")
+        self.timer_label.hide()
+
+
+    
+    def handle_otp_input(self, text):
+        current_box = self.sender()  # Get the sender QLineEdit
+        index = self.otp_boxes.index(current_box)
+        if len(text) == 1 and index < len(self.otp_boxes) - 1:
+            self.otp_boxes[index + 1].setFocus()  # Move focus to the next box
+        elif len(text) == 1 and index == len(self.otp_boxes) - 1:
+            self.check_otp()
+               
+
+    def update_timer(self):
+        self.time_left -= 1
+        self.timer_label.setText(f"Time remaining: {self.time_left} seconds")
+        if self.time_left == 0:
+            self.timer.stop()
+            self.clear_otp_input()
+            self.otp_generated
+            self.otp_generated = False
+            QMessageBox.warning(self, "OTP Expired", "Your OTP has expired. Please request a new OTP.")
+         
+    
+    
+       
+           
+          
+
+        
+        
+     
+    def start_timer(self):
+
+         # Check if timer is already running, stop it first
+        if hasattr(self, 'timer') and self.timer.isActive():
+            self.timer.stop()
+           # Initialize timer
+        self.time_left = 60 # 3 minutes (180 seconds)
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_timer)
+        self.timer.start(1000)  # Update timer every second
+    
+
+
+
+
+        
+
+    def create_db_connection(self):
+        try:
+            db = mysql.connector.connect(
+                host="localhost",
+                port=3307,
+                user="root",
+                password="S3cR3tUs3R",
+                database="desktopdb"
+            )
+            return db
+        except mysql.connector.Error as e:
+            QMessageBox.critical(self, "Database Error", f"Failed to connect to the database. Error: {e}")
+            return None
+        
+    def fetch_email(self):
+        
+
+        
+
+        try:
+            cursor = self.db.cursor()
+            cursor.execute("SELECT Email FROM registerdb")
+            Email = [Email[0] for Email in cursor.fetchall()]
+            cursor.close()
+            return Email
+        except Exception as e:
+            print(f"Error fetching Email: {e}")
+            return []     
+
+
+    def change_password(self):
+        email = self.email_input.text()
+        new_password = self.password_input.text()
+        confirm_password = self.confirm_password_input.text()
+        entered_otp = self.otp
+
+
+        email_list = self. fetch_email()
+
+
+
+        if email not in email_list:
+            self.notification_label.setText("Please Enter A Valid Email Address")
+            self.notification_label.show()
+            return
+        
+        if new_password == "":
+            self.notification_label.setText("Please Enter Your New Password")
+            self.notification_label.show()
+            return
+        
+        if confirm_password == " ":
+            self.notification_label.setText("Please Confirm Your Password")
+            self.notification_label.show()
+            return
+        
+        self.notification_label.hide()
+
+        if entered_otp =="":
+
+            self.email_input.hide()
+            self.email_input.clear()
+            self.password_input.hide()
+            self.password_input.clear()
+            self.confirm_password_input.hide()
+            self.confirm_password_input.clear()
+            self.show_password_checkbox.hide()
+            self.show_confirm_password_checkbox.hide()
+            print(f"Sending OTP to {email}")
+            self.generate_otp()
+            
+            self.otp_generated = True
+            
+            self.info_label.show()
+            self.container.show()
+            self.timer_label.show()
+            self.regenerate_otp_button.show()
+            self.notification_label.setText("")
+            self.start_timer()
+            self.notification_label.hide()
+
+    def update_database(self):
+        email = self.email_input.text()
+        new_password = self.password_input.text()
+        
+        try:
+            if self.db is None:
+                return
+            
+            #Create Cursor:
+            cursor = self.db.cursor()
+            hash_password = hashlib.sha256(new_password.encode()).hexdigest()
+        
+            
+            # Execute SELECT query to check login credentials
+            sql = "UPDATE registerdb SET Password = %s, PasswordHash = %s WHERE Email = %s"
+            cursor.execute(sql, (new_password, hash_password, email))
+
+            self.db.commit()
+            cursor.close()
+
+
+            QMessageBox.information(self, "Password Changed", "You have successfully changed your Password.")
+            self.email_input.clear()
+            self.password_input.clear()
+            self.confirm_password_input.clear()
+        
+        except mysql.connector.Error as e:
+            QMessageBox.critical(self, "Database Error", f"Error updating logout time: {e}")
+      
+
+    def generate_otp(self):
+        
+        
+        self.otp = str(random.randint(100000, 999999))
+        
+
+        
+        self.start_timer()
+
+   
+
+    def clear_otp_input(self):
+        for otp_box in self.otp_boxes:
+            otp_box.clear()  
+
+    def check_otp(self):
+        entered_otp = "".join(box.text() for box in self.otp_boxes)
+
+        if self.time_left <= 0:
+           QMessageBox.warning(self, "OTP Expired", "Your OTP has expired. Please request a new OTP.")
+           self.clear_otp_input()
+           self.otp_generated = False
+           return
+           
+        if entered_otp == self.otp:
+            QMessageBox.information(self, "Success", "OTP Matched Successfully")
+            self.clear_otp_input()
+            
+            self.info_label.hide()
+            self.container.hide()
+            self.timer_label.hide()
+            self.regenerate_otp_button.hide()
+            self.email_input.show()
+            self.password_input.show()
+            self.show_password_checkbox.show()
+            self.show_confirm_password_checkbox.show()
+            self.confirm_password_input.show()
+            
+            self.timer.stop() 
+
+            self.update_database()
+          
+           
+
+
+        else:
+            QMessageBox.warning(self, "Error", "Invalid OTP, Please try again")
+            self.clear_otp_input()
+            self.otp_generated = False  
+                 
+           
+
+
+
+
+
+    def validate_email(self, text):
+        # Regular expression pattern for validating email addresses
+        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+
+        # Compile the pattern into a regular expression object
+        regex = re.compile(pattern)
+
+        # Use match method to check if the input text matches the pattern
+        if regex.match(text):
+            # Valid email format
+            self.email_input.setStyleSheet("border-radius: 25px; border: 2px solid green;")
+        else:
+            # Invalid email format
+            self.email_input.setStyleSheet("border-radius: 25px;  border: 5px solid red;")
+
+            # Set font size back to normal
+            font = self.email_input.font()
+            font.setPointSize(10)  # Adjust the font size as needed
+            self.email_input.setFont(font)
+
+
+
+
+    @pyqtSlot()
+    def reset_email_input_style(self):
+        # Reset the stylesheet when the user leaves the input field
+        self.email_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+
+    def validate_inputs(self):
+        # Check if any of the required fields are empty
+        if self.password_input.text().strip() == "":
+            self.notification_label.setText("Please Enter Password.")
+            self.notification_label.show()
+            self.notification_label.setGeometry(575,600,350,50)
+            return
+
+            # If all required fields are filled, hide the notification and proceed
+        self.notification_label.hide()
+            # Proceed with the registration process
+        self.open_login_window()
+        self.close()
+
+    
+       
+
+    def toggle_password_visibility(self, state):
+        if state == Qt.Checked:
+            # Show password
+            self.password_input.setEchoMode(QLineEdit.Normal)
+        else:
+            # Hide password
+            self.password_input.setEchoMode(QLineEdit.Password)
+
+
+
+    def toggle_confirm_password_visibility(self, state):
+        if state == Qt.Checked:
+            # Show password
+            self.confirm_password_input.setEchoMode(QLineEdit.Normal)
+        else:
+            # Hide password
+            self.confirm_password_input.setEchoMode(QLineEdit.Password)
+
+
+    def validate_password(self, password):
+       
+        password_pattern = r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?!.*\s).{8,}$'
+
+        # Compile the pattern into a regular expression object
+        regex = re.compile(password_pattern)
+
+        # Use match method to check if the input password matches the pattern
+        if regex.match(password):
+            self.password_input.setStyleSheet("border-radius: 25px; border: 2px solid green;")
+        else:
+            # Invalid email format
+            self.password_input.setStyleSheet("border-radius: 25px;  border: 5px solid red;")
+
+
+
+            # Set font size back to normal
+        font = self.password_input.font()
+        font.setPointSize(10)  # Adjust the font size as needed
+        self.password_input.setFont(font)
+
+
+    def validate_confirmation_password(self):
+        # Get the content of both password fields
+        password = self.password_input.text()
+        confirmation_password = self.confirm_password_input.text()
+
+        # Check if the confirmation password matches the original password
+        if password == confirmation_password:
+            # Matching passwords, apply green border
+            self.confirm_password_input.setStyleSheet("border-radius: 25px; border: 2px solid green;")
+        else:
+            # Non-matching passwords, apply red border
+            self.confirm_password_input.setStyleSheet("border-radius: 25px; border: 2px solid red;")
+
+            # Set font size back to normal
+            font = self.password_input.font()
+            font.setPointSize(10)  # Adjust the font size as needed
+            self.confirm_password_input.setFont(font)
+
+
+
+
+    @pyqtSlot()
+    def reset_password_input_style(self):
+        # Reset the stylesheet when the user leaves the input field
+        self.password_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;") 
+
+    @pyqtSlot()
+    def reset_confirm_password_input_style(self):
+        self.confirm_password_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+     
+
+
+    def open_login_window(self):
+        self.login_window = LoginWindow()
+        self.login_window.show()
+        self.close()         
+
+    def load_image(self):
+        pixmap = QPixmap(self.image_paths[0])  # Assuming there's only one image in the list
+        self.image_label.setPixmap(pixmap)
+        self.image_label.setScaledContents(True)  # Ensure the image fits into the QLabel
+    
 
 
 
