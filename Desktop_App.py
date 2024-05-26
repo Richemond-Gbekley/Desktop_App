@@ -6,17 +6,18 @@ import random
 import datetime
 import schedule
 import time
+import decimal
 import csv
 import mysql.connector
 from datetime import datetime, timedelta
 from PyQt5.QtCore import pyqtSlot
 from decimal import Decimal
-from PyQt5 import QtCore
+from PyQt5 import QtCore 
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QIcon
 from PyQt5.QtGui import QPixmap,QPalette,QBrush,QPen,QPainter, QColor
 from PyQt5.QtCore import QRectF, QPoint, QObject,pyqtSignal, Qt, QPropertyAnimation, QRect, QTimer, QSize,QDate ,QCalendar ,QDateTime# Qt core manages the alignment, and the Qpropertyanimation, with the Qreact handles the animation
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel,QListWidgetItem,QListWidget, QVBoxLayout,QFileDialog, QPushButton, QWidget, QLineEdit, QComboBox,QTextEdit, QStyle, QAction, QToolBar,QToolButton, QCheckBox, QMenu, QDateEdit, QMessageBox,QCalendarWidget,QStackedWidget,QFrame,QHBoxLayout
+from PyQt5.QtWidgets import QApplication, QMainWindow,QFormLayout, QAbstractItemView,QTableWidget,QTableWidgetItem,QLabel,QListWidgetItem,QListWidget, QVBoxLayout,QFileDialog, QPushButton, QWidget, QLineEdit, QComboBox,QTextEdit, QStyle, QAction, QToolBar,QToolButton, QCheckBox, QMenu, QDateEdit, QMessageBox,QCalendarWidget,QStackedWidget,QFrame,QHBoxLayout
 
 
 class LoginWindow(QMainWindow):
@@ -116,7 +117,7 @@ class LoginWindow(QMainWindow):
         self.email_input.setGeometry(575, 290, 350, 50)  # Adjust the position and size of the input field
 
         # Set placeholder text for the email input field
-        self.email_input.setPlaceholderText("Enter Email, Phone, or  Account no")
+        self.email_input.setPlaceholderText("Enter Email, or , Mobile Address")
 
 
         # Apply styling to the email input field
@@ -163,11 +164,6 @@ class LoginWindow(QMainWindow):
 
     
    
-
-
-
-
-
 
 
 
@@ -247,6 +243,7 @@ class LoginWindow(QMainWindow):
     def open_Main1_window(self):
         email = self.email_input.text()
         password = self.password_input.text()
+        
 
 
         try:
@@ -272,7 +269,7 @@ class LoginWindow(QMainWindow):
 
                 # Assuming the login is successful and you have retrieved user details
                 Firstname, Lastname, Phonenumber = self.get_user_details(email)
-                self.log_login(Firstname, Lastname, email)
+                self.log_login(Firstname, Lastname, email, Phonenumber)
                 self.my_accountdb(Firstname, Lastname,  Phonenumber, email)
                 self.current_user_email = email #Sets the session variable
                 self.current_password = hash_password
@@ -311,12 +308,12 @@ class LoginWindow(QMainWindow):
         cursor.close()
         return result if result else (None, None)
 
-    def log_login(self, Firstname, Lastname, email):
+    def log_login(self, Firstname, Lastname, email, Phonenumber):
         try:
            cursor = self.db.cursor()
            login_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-           sql = "INSERT INTO login_logs (Firstname, Lastname, Email, login_time) VALUES (%s,%s, %s, %s)"
-           values = (Firstname, Lastname, email, login_time,)
+           sql = "INSERT INTO login_logs (Firstname, Lastname, Email, login_time, PhoneNumber) VALUES (%s,%s, %s, %s,%s)"
+           values = (Firstname, Lastname, email, login_time, Phonenumber,)
            cursor.execute(sql, values)
            self.db.commit()
            cursor.close() 
@@ -443,7 +440,7 @@ class Main1Window(QMainWindow):
         # Add pages to the stacked widget
         self.home_page(db, current_user_email,Firstname) #0
         self.account_page() #1
-        self.investment_page() #2
+        self.susu_page() #2
         self.savings_page() #3
         self.transfer_page() #4
         self.loan_page() #5
@@ -452,8 +449,8 @@ class Main1Window(QMainWindow):
         self.change_password_page(db, current_password, current_user_email) #8
         self.check_balance_page() #9
         self.mini_statement_page() # 10
-        self.invest_page() #11
-        self.invest_request_page() #12
+        self.susu_details_page() #11
+        self.create_account_page() #12
         self.own_account_page() #13
         self.another_account_page()# 14
         self.wallet_page() # 15
@@ -474,6 +471,7 @@ class Main1Window(QMainWindow):
         self.mobile_wallet_to_account_transfer() #30
         self.transfer_to_my_saving_account() #31
         self.transfer_to_investment_account() #32
+        self.join_susu_group() #33
         
         self.stacked_widget.currentChanged.connect(self.handle_page_change)
 
@@ -527,10 +525,10 @@ class Main1Window(QMainWindow):
         account_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(1))  # Switch to home page
         
 
-        investment_button = QPushButton("Investment", self.frame)
-        investment_button.setGeometry(10,310,150,30)
-        self.set_button_icon2(investment_button, "investment.png")
-        investment_button.setStyleSheet("""
+        susu_button = QPushButton("Susu", self.frame)
+        susu_button.setGeometry(-7,310,150,30)
+        self.set_button_icon2(susu_button, "investment.png")
+        susu_button.setStyleSheet("""
                              QPushButton {
                              background-color: transparent;
                              border:none;
@@ -542,7 +540,7 @@ class Main1Window(QMainWindow):
                                   font-size: 15pt;
                               }
                           """)
-        investment_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(2))  # Switch to home page
+        susu_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(2))  # Switch to home page
 
 
         savings_button = QPushButton("Savings", self.frame)
@@ -1189,7 +1187,7 @@ class Main1Window(QMainWindow):
         my_account_button.setIcon(icon)
 
 # Set the text for the button
-        my_account_button.setText(" | My Account")
+        my_account_button.setText(" | My Wallet")
 
         my_account_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(22))
 
@@ -1483,10 +1481,9 @@ class Main1Window(QMainWindow):
        
         try:
             pin = self.pin_input.text()
-            PIN = hashlib.sha256(pin.encode()).hexdigest()
+            PIN = self.sha512_64_hash(pin) 
             cursor = self.db.cursor()
-            print(pin)
-            print(PIN)
+            
             cursor.execute("SELECT Balance FROM my_accountdb WHERE Email = %s AND PIN = %s", (email, PIN))
             result = cursor.fetchone()
 
@@ -1494,7 +1491,7 @@ class Main1Window(QMainWindow):
                 balance = result[0]
                 self.acc_label.setText(f"Gh¢{balance}.")
                 self.acc_label.show()
-                print(PIN + " For checking balance")
+                
             else:
                 QMessageBox.warning(self, "Incorrect PIN", "Please enter the correct PIN.")
 
@@ -1629,7 +1626,7 @@ class Main1Window(QMainWindow):
         new_pin = self.new_pin_input.text()
         confirm_pin = self.confirm_new_pin_input.text()
 
-        hash_new_pin = hashlib.sha256(new_pin.encode()).hexdigest()
+        hash_new_pin = self.sha512_64_hash(new_pin)
         
 
 
@@ -1667,9 +1664,8 @@ class Main1Window(QMainWindow):
              cursor = self.db.cursor()
              message = "Congratulations, you've successfully activated your wallet"
              new_pin = self.new_pin_input.text()
-             hash_new_pin = hashlib.sha256(new_pin.encode()).hexdigest()
-             print(new_pin)
-             print(hash_new_pin + "Create pin Hash")
+             hash_new_pin = self.sha512_64_hash(new_pin)
+             
 
 
            
@@ -2326,25 +2322,80 @@ to successfully change your Email Address""") # Print the generated OTP
 
 
 
-    def investment_page(self):
-        investment_widget =QWidget()
-        investment_label = QLabel("<html><p> Investment <p></html>", investment_widget)
-        investment_label.setGeometry(350, 50, 600 , 80)
-        investment_label.setStyleSheet("background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")    
-        investment_label.setAlignment(Qt.AlignCenter)
+    def susu_page(self):
+        susu_widget =QWidget()
+        susu_label = QLabel("<html><p> Investment <p></html>", susu_widget)
+        susu_label.setGeometry(350, 50, 600 , 80)
+        susu_label.setStyleSheet("background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")    
+        susu_label.setAlignment(Qt.AlignCenter)
+
+
+
+        self.susu_table_widget = QWidget()
+        self.susu_table_widget.setGeometry(400, 200, 800, 400)
+        self.susu_table_widget.setStyleSheet("background-color: black; border-radius: 20px; padding: 10px;")
+        self.susu_table_widget.setParent(susu_widget)
+
+        self.widget_layout = QVBoxLayout(self.susu_table_widget)
+
+        susu_title = QLabel("Group Details")
+        susu_title.setFont(QFont("Arial", 16, QFont.Bold))
+        susu_title.setStyleSheet("background-color: #333333; color: white; padding: 10px; border-radius: 10px; font-size: 16pt;")
+        self.widget_layout.addWidget(susu_title)
+
+      
+
+
+        
+        self.susu_table = QTableWidget()
+        self.susu_table.setColumnCount(5)
+        
+        self.susu_table.setColumnWidth(0, 150)  
+        self.susu_table.setColumnWidth(1, 190)  
+        self.susu_table.setColumnWidth(2, 120)  
+        self.susu_table.setColumnWidth(3, 150)  
+        self.susu_table.setColumnWidth(4, 120) 
+        
+        self.susu_table.horizontalHeader().setStyleSheet("QHeaderView::section { background-color: #333333; color: white; padding: 10px; }")
+        self.susu_table.horizontalHeader().setFixedHeight(60)
+        self.susu_table.horizontalHeader().setFont(QFont("Arial", 10))
+        self.susu_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        
+        self.susu_table.setHorizontalHeaderLabels(["Group Name", "Contribution Amount", "Interval", "Members", "Status"])
+        self.susu_table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        
+        self.susu_table.setAlternatingRowColors(True)
+        self.susu_table.setStyleSheet("QTableWidget { background-color: #1a1a1a; color: white; }")
+        self.susu_table.setStyleSheet("QTableWidget::item { background-color: #262626; }")
+        self.susu_table.setParent(susu_widget)
+        self.widget_layout.addWidget(self.susu_table)
+
+           # Execute SELECT query to check login credentials
+        #cursor = self.db.cursor()
+        #query = "SELECT member_id FROM susu_members WHERE Email = %s"
+        #cursor.execute(query,(self.current_user_email,))
+        #result = cursor.fetchone()
+
+        #if result:
+        self.load_susu_groups()
+
+                 
+
+        
+        
        
 
        #Investment Balance
 
-        investment_balance_button = QPushButton(self)
-        investment_balance_button.setGeometry(50, 200, 500, 50)
+        view_details_button = QPushButton(self)
+        view_details_button.setGeometry(50, 360, 300, 50)
                          
         # Set the icon size explicitly
         icon_size = QSize(30, 30)  # Adjust the size as needed
-        investment_balance_button.setIconSize(icon_size)
+        view_details_button.setIconSize(icon_size)
 
          # Set the icon position to the left side of the button
-        investment_balance_button.setStyleSheet("""
+        view_details_button.setStyleSheet("""
                         QPushButton {
                                      background-color: white;
                                      font-size: 12pt; 
@@ -2365,26 +2416,26 @@ to successfully change your Email Address""") # Print the generated OTP
 
 # Set the icon to the left of the button text
         icon = QIcon("investment.png")
-        investment_balance_button.setIcon(icon)
+        view_details_button.setIcon(icon)
 
 # Set the text for the button
-        investment_balance_button.setText(" | Check Investment Account Balance")
+        view_details_button.setText(" | View Details")
 
-        investment_balance_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(11))
+        view_details_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(11))
 
-        investment_balance_button.setParent(investment_widget)
+        view_details_button.setParent(susu_widget)
 
 
                #INVESTMENT REQUEST
-        investment_request_button = QPushButton(self)
-        investment_request_button.setGeometry(50, 280, 500, 50)
+        create_susu_account_button = QPushButton(self)
+        create_susu_account_button.setGeometry(50, 200, 300, 50)
                          
         # Set the icon size explicitly
         icon_size = QSize(30, 30)  # Adjust the size as needed
-        investment_request_button.setIconSize(icon_size)
+        create_susu_account_button.setIconSize(icon_size)
 
          # Set the icon position to the left side of the button
-        investment_request_button.setStyleSheet("""
+        create_susu_account_button.setStyleSheet("""
                         QPushButton {
                                      background-color: white;
                                      font-size: 12pt; 
@@ -2405,45 +2456,629 @@ to successfully change your Email Address""") # Print the generated OTP
 
 # Set the icon to the left of the button text
         icon = QIcon("investment.png")
-        investment_request_button.setIcon(icon)
+        create_susu_account_button.setIcon(icon)
 
 # Set the text for the button
-        investment_request_button.setText(" | Investment Request")
+        create_susu_account_button.setText(" | Create Group Account")
 
-        investment_request_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(12))
+        create_susu_account_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(12))
 
-        investment_request_button.setParent(investment_widget)
-
-
-        self.stacked_widget.addWidget(investment_widget)
+        create_susu_account_button.setParent(susu_widget)
 
 
-    def invest_page(self):
-        invest_widget = QWidget()
-       
-        invest_label = QLabel("<html><p>Check Investment Account Balance<p></>", invest_widget)
-        invest_label.setGeometry(350,50,600,80)
-        invest_label.setStyleSheet(
+               #INVESTMENT REQUEST
+        join_susu_account_button = QPushButton(self)
+        join_susu_account_button.setGeometry(50, 280, 300, 50)
+                         
+        # Set the icon size explicitly
+        icon_size = QSize(30, 30)  # Adjust the size as needed
+        join_susu_account_button.setIconSize(icon_size)
+
+         # Set the icon position to the left side of the button
+        join_susu_account_button.setStyleSheet("""
+                        QPushButton {
+                                     background-color: white;
+                                     font-size: 12pt; 
+                                     border-radius: 35px;
+                                     text-align: left;  /* Align text to the left */
+                                     padding-left: 40px;  /* Space for the icon */
+                                               
+                                     }          
+                        
+                        QPushButton::icon {
+                                     padding-right: 15px;  /* Space between icon and text */
+                                    }
+                        QPushButton:hover{
+                                     background-color:#333333
+                                    } 
+                                    
+                                                """)
+
+# Set the icon to the left of the button text
+        icon = QIcon("investment.png")
+        join_susu_account_button.setIcon(icon)
+
+# Set the text for the button
+        join_susu_account_button.setText(" | Join Group")
+
+        join_susu_account_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(33))
+
+        join_susu_account_button.setParent(susu_widget)
+
+
+
+
+        self.stacked_widget.addWidget(susu_widget)
+    def join_susu_group(self):
+        join_susu_widget = QWidget()
+
+        join_susu_label = QLabel("<html><p>Join Susu Group</p></>", join_susu_widget)
+        join_susu_label.setGeometry(350, 50, 600 , 80)
+        join_susu_label.setStyleSheet(
             "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
-        invest_label.setAlignment(Qt.AlignCenter)
-       # profile_layout.addWidget(welcome_label)
+        join_susu_label.setAlignment(Qt.AlignCenter)
+        
+        form_layout = QFormLayout()
+
+        self.group_id_input = QLineEdit()
+        self.group_id_input.setPlaceholderText("Enter Group ID")
+        self.group_id_input.setGeometry(50, 200, 350, 50)
+        self.group_id_input.setClearButtonEnabled(True)
+        self.group_id_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+        form_layout.addRow("Group ID:", self.group_id_input)
+        self.group_id_input.setParent(join_susu_widget)
+
+        self.session_id_input = QLineEdit()
+        self.session_id_input.setPlaceholderText("Enter Session ID")
+        self.session_id_input.setGeometry(50, 280, 350, 50)
+        self.session_id_input.setClearButtonEnabled(True)
+        self.session_id_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+        form_layout.addRow("Group ID:", self.session_id_input)
+        self.session_id_input.setParent(join_susu_widget)
+
+        join_button = QPushButton("Join Susu", self)
+        join_button_width = 300
+        join_button_x = (self.width() - join_button_width) // 3
+        join_button.setGeometry(join_button_x, 400, join_button_width, 70)
+        join_button.setStyleSheet("""
+                                           QPushButton {
+                                           background-color: blue;
+                                           font-size: 18pt;
+                                           border-radius: 35px;
+                                                        }
+                                           QPushButton:hover {
+                                           background-color: #333333;
+                                                        }
+                                          """)
+        join_button.clicked.connect(self.join_susu)
+        form_layout.addRow(join_button)
+        join_button.setParent(join_susu_widget)
+
+        self.stacked_widget.addWidget(join_susu_widget)
+
+    def join_susu(self):
+         #Join an existing Susu group.
+        group_id = self.group_id_input.text()
+        session_id = self.session_id_input.text()
+        mysession_id = random.randint(1000000000, 9999999999)
+        
+        
+
+        if  group_id  == "":
+            QMessageBox.warning(self, "Input Error", "Please fill in all the fields.")
+            return
+        if session_id == "":
+            QMessageBox.warning(self, "Input Error", "Please fill in all the fields.")
+
+        
+        try:
+            cursor = self.db.cursor()
+
+        # Check if the group ID exists
+            check_group_query = "SELECT group_name FROM susu_groups WHERE group_id = %s"
+            cursor.execute(check_group_query, (group_id,))
+            group = cursor.fetchone()
+
+            if not group:
+             # If group ID does not exist, show a warning message
+               QMessageBox.warning(self, "Group Not Found", "The specified group ID does not exist.")
+               cursor.close()
+               return
+              # If group ID exists, get the group name
+            group_name = group[0]
+
+             # Fetch the session ID from the susu_members table
+            fetch_session_query = "SELECT session_id FROM susu_members WHERE group_id = %s"
+            cursor.execute(fetch_session_query, (group_id,))
+            session = cursor.fetchone()
+
+            if not session:
+            # If session ID does not exist for the group, show a warning message
+                QMessageBox.warning(self, "Session Not Found", "No session ID found for the specified group.")
+                cursor.close()
+                return
+            session_id = session[0]
+        # Prompt for user confirmation
+            confirmation_msg = QMessageBox.question(
+            self,
+            "Confirm Join Group",
+            f"Do you want to join the group '{group_name}'?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+            
+            if confirmation_msg == QMessageBox.No:
+            # If user declines, halt the process
+                cursor.close()
+                return    
+
+             # Proceed with the join process if user confirms
+            join_group_query = """
+            INSERT INTO susu_members (Email, member_fname, member_lname, group_id, member_id, session_id)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """
+            values = (self.current_user_email, self.first_name, self.last_name, group_id, self.phone_number,mysession_id)
+            cursor.execute(join_group_query, values)
+            self.db.commit()
+
+            contributions_query = """
+            INSERT INTO contributions (session_id, member_id, Group_id, amount)
+            VALUES (%s, %s, %s, %s)
+        """
+            values = (mysession_id, self.phone_number, group_id, 0.00)
+            cursor.execute(contributions_query, values,)
+            self.db.commit()
+            cursor.close()
+            QMessageBox.information(self, "Success", "Successfully joined Susu group.")
+            QMessageBox.information(self, "Success", "Your Member_id is your Mobile Number.")
+            
+            
+            self.load_user_accounts()
+            self.check_and_activate_group(group_id)
+        except mysql.connector.Error as e:
+            QMessageBox.critical(self, "Database Error", f"Failed to join Susu group. Error: {e}")
+
+
+
+    def check_and_activate_group(self, group_id):
+        try:
+            cursor = self.db.cursor()
+
+        # Fetch the number of members required to activate the group
+            required_member_count_query = "SELECT Number_of_Members FROM susu_groups WHERE group_id = %s"
+            cursor.execute(required_member_count_query, (group_id,))
+            result = cursor.fetchone()
+
+            if result is None:
+                QMessageBox.warning(self, "Group Not Found", "The specified group ID does not exist.")
+                cursor.close()
+                return
+
+            required_member_count = result[0]
+            print(required_member_count)
+
+        # Fetch the current number of members in the group
+            current_member_count_query = "SELECT COUNT(*) FROM susu_members WHERE group_id = %s"
+            cursor.execute(current_member_count_query, (group_id,))
+            current_member_count = cursor.fetchone()[0]
+            print(current_member_count)
+
+        # Activate the group if the required number of members is met
+            if current_member_count == required_member_count:
+                activate_group_query = "UPDATE susu_groups SET status = 'Active' ,start_date =%s WHERE group_id = %s"
+                start_date = datetime.now().strftime('%Y-%m-%d')
+                cursor.execute(activate_group_query, (start_date, group_id,))
+                self.db.commit()
+                QMessageBox.information(self, "Group Activated", "The Susu group has been activated.")
+                self.load_user_accounts()
+            cursor.close()
+        except mysql.connector.Error as e:
+                QMessageBox.critical(self, "Database Error", f"Failed to check and activate Susu group. Error: {e}")
+
+
+
+
+    def susu_details_page(self):
+
+        
+        susu_details_widget = QWidget()
        
-
-        self.stacked_widget.addWidget(invest_widget)     
-
-
-    def invest_request_page(self):
-        request_widget = QWidget()
-       
-        request_label = QLabel("<html><p>Check Investment Request<p></>", request_widget)
-        request_label.setGeometry(350,50,600,80)
-        request_label.setStyleSheet(
+        susu_details_label = QLabel(f"Susu Group Details ", susu_details_widget)
+        susu_details_label.setGeometry(350,50,600,80)
+        susu_details_label.setStyleSheet(
             "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
-        request_label.setAlignment(Qt.AlignCenter)
+        susu_details_label.setAlignment(Qt.AlignCenter)
        # profile_layout.addWidget(welcome_label)
+
+        susu_group_label = QLabel("Select Group ID:", self)
+        susu_group_label.setGeometry(50, 150, 200, 30)
+        susu_group_label.setStyleSheet("font-size: 14pt; font-weight: bold;")
+        susu_group_label.setParent(susu_details_widget)
+    
+        self.susu_account_dropdown = QComboBox(self)
+        self.susu_account_dropdown.setGeometry(250, 150, 250, 40)
+        self.susu_account_dropdown.setStyleSheet("border-radius: 10px; padding: 5px; font-size: 14px; font-weight: bold;")
+        self.susu_account_dropdown.setParent(susu_details_widget)
+
+        view_details_button = QPushButton("View Details", self)
+        view_details_button_width = 300
+        view_details_button_x = (self.width() - view_details_button_width) // 2
+        view_details_button.setGeometry(view_details_button_x, 150, view_details_button_width, 50)
+        view_details_button.setStyleSheet("""
+                                        QPushButton {
+                                             background-color: green;
+                                             font-size: 14pt;
+                                             border-radius: 25px;
+                                                    }
+                                             QPushButton:hover {
+                                             background-color: #333333;
+                                                               }
+                                         """)
+        view_details_button.clicked.connect(self.fetch_and_display_susu_details)
+        view_details_button.setParent(susu_details_widget)
+
+        
        
 
-        self.stacked_widget.addWidget(request_widget)     
+          # Add a table for group information
+        self.group_info_table_widget = QWidget()
+        self.group_info_table_widget.setGeometry(50, 225, 1200, 300)
+        self.group_info_table_widget.setStyleSheet("background-color: black; border-radius: 20px; padding: 10px;")
+        self.group_info_table_widget.setContentsMargins(20, 20, 20, 20)
+        self.group_info_table_widget.setParent(susu_details_widget)
+
+        self.widget_layout = QVBoxLayout(self.group_info_table_widget)
+
+        susu_title = QLabel("Group Details")
+        susu_title.setFont(QFont("Arial", 16, QFont.Bold))
+        susu_title.setStyleSheet("background-color: #333333; color: white; padding: 10px; border-radius: 10px; font-size: 16pt;")
+        self.widget_layout.addWidget(susu_title)
+
+          
+        self.group_info_table = QTableWidget()
+        
+       # self.group_info_table.setStyleSheet("background-color: balck; color: black; padding: 10px; border-radius: 10px; font-size: 14pt")
+        self.group_info_table.setColumnCount(10)
+        self.group_info_table.setColumnWidth(0, 120)  # Group Name
+        self.group_info_table.setColumnWidth(1, 170)  # Created By (Email)
+        self.group_info_table.setColumnWidth(2, 120)  # First Name
+        self.group_info_table.setColumnWidth(3, 120)  # Last Name
+        self.group_info_table.setColumnWidth(4, 130)  # Member ID
+        self.group_info_table.setColumnWidth(5, 200)  # Contribution Amount
+        self.group_info_table.setColumnWidth(6, 200)  # Contribution Interval
+        self.group_info_table.setColumnWidth(7, 200)  # Number of Members
+        self.group_info_table.setColumnWidth(8, 100)  # Status
+        self.group_info_table.setColumnWidth(9, 100)  # Start Date
+        self.group_info_table.setRowHeight(0, 30)  # Adjust row height for header
+       #Set Header Style 
+        self.group_info_table.horizontalHeader().setStyleSheet("QHeaderView::section { background-color: #333333; color: white; padding: 12px; }")
+        self.group_info_table.horizontalHeader().setFixedHeight(60)
+        self.group_info_table.horizontalHeader().setFont(QFont("Arial", 10))
+        #set the table to be non-editable
+        self.group_info_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        #set the horizontal header labels
+     #Set the selection behavior and style       
+        self.group_info_table.setHorizontalHeaderLabels(["Group Name", "Created By (Email)", "First Name", "Last Name", "Member ID", "Contribution Amount", "Contribution Interval", "Number of Members", "Status", "Start Date"])
+        self.group_info_table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        
+       
+        self.group_info_table.setAlternatingRowColors(True)
+        self.group_info_table.setStyleSheet("QTableWidget { background-color: #1a1a1a; color: white; }")
+        self.group_info_table.setStyleSheet("QTableWidget::item:selected { background-color: #4d4d4d; color: white; }")
+        self.group_info_table.setStyleSheet("QTableWidget::item { background-color: #262626; }")
+        self.widget_layout.addWidget(self.group_info_table)
+
+    # Add a table for member contributions
+
+        
+          # Add a table for group information
+        self.member_contributions_table_widget = QWidget()
+        self.member_contributions_table_widget.setGeometry(50, 550, 1200, 300)
+        self.member_contributions_table_widget.setStyleSheet("background-color: black; border-radius: 20px; padding: 10px;")
+        self.member_contributions_table_widget.setParent(susu_details_widget)
+
+        self.widget_layout = QVBoxLayout(self.member_contributions_table_widget)
+
+        title = QLabel("Group Details")
+        title.setFont(QFont("Arial", 16, QFont.Bold))
+        title.setStyleSheet("background-color: #333333; color: white; padding: 10px; border-radius: 10px; font-size: 16pt;")
+        self.widget_layout.addWidget(title)
+
+        self.member_contributions_table = QTableWidget()
+        
+        
+        self.member_contributions_table.setColumnCount(5)
+        self.member_contributions_table.setRowHeight(0, 30) 
+        self.member_contributions_table.setColumnWidth(0, 200)  
+        self.member_contributions_table.setColumnWidth(1, 200)  
+        self.member_contributions_table.setColumnWidth(2, 200)  
+        self.member_contributions_table.setColumnWidth(3, 200)  
+        self.member_contributions_table.setColumnWidth(4, 200)  
+        
+        
+        
+        self.member_contributions_table.horizontalHeader().setStyleSheet("QHeaderView::section { background-color: #333333; color: white; padding: 12px; }")
+        self.member_contributions_table.horizontalHeader().setFixedHeight(60)
+        self.member_contributions_table.horizontalHeader().setFont(QFont("Arial", 10))
+        self.member_contributions_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        
+        self.member_contributions_table.setHorizontalHeaderLabels(["Member First Name","Member Last Name" ,"Contribution Date", "Amount", "Status"])
+        self.member_contributions_table.setParent(susu_details_widget)
+        self.member_contributions_table.setSelectionBehavior(QAbstractItemView.SelectRows)
+                
+        self.member_contributions_table.setAlternatingRowColors(True)
+        self.member_contributions_table.setStyleSheet("QTableWidget { background-color: #1a1a1a; color: white; }")
+        self.member_contributions_table.setStyleSheet("QTableWidget::item:selected { background-color: #4d4d4d; color: white; }")
+        self.member_contributions_table.setStyleSheet("QTableWidget::item { background-color: #262626; }")
+        
+        self.widget_layout.addWidget(self.member_contributions_table)
+        
+        self.load_susu_accounts()
+
+       
+
+
+      
+        self.stacked_widget.addWidget(susu_details_widget)  
+    def load_susu_accounts(self):
+        try:
+            cursor = self.db.cursor()
+            #Query for saving accounts
+            cursor.execute("SELECT group_id FROM susu_members WHERE Email = %s", (self.current_user_email,))
+            susu_accounts = cursor.fetchall()
+
+            for account in susu_accounts:
+                self.susu_account_dropdown.addItem(f"Group ID: {account[0]}")
+        except mysql.connector.Error as e:
+
+            QMessageBox.critical(self, "Database Error", f"Error loading accounts: {e}")
+        finally:
+            cursor.close() 
+
+
+           
+
+    def fetch_and_display_susu_details(self):
+        group_id = self.susu_account_dropdown.currentText().split(": ")[1]
+        cursor = self.db.cursor()
+        
+
+        # Fetch group information
+        group_info_query = "SELECT Group_name, Email, Firstname, Lastname, member_id, Contribution_Amount, Contribution_Interval, Number_of_Members, status, start_date FROM susu_groups WHERE Group_ID = %s"
+        cursor.execute(group_info_query, (group_id,))
+        group_info = cursor.fetchone()
+
+        self.group_info_table.setRowCount(0)
+        if group_info:
+            row_number = self.group_info_table.rowCount()
+            self.group_info_table.insertRow(row_number)
+            for column_number, data in enumerate(group_info):
+                if isinstance(data, decimal.Decimal):
+                    data = str(data)  # Convert decimal to string
+                self.group_info_table.setItem(row_number, column_number, QTableWidgetItem(str(data)))
+
+
+        # Fetch member contributions
+        member_contributions_query = """
+            SELECT m.member_fname, m.member_lname, c.Contribution_date, c.amount, c.status
+            FROM contributions c
+            JOIN susu_members m ON c.session_id = m.session_id
+            WHERE m.group_id = %s
+        """
+        cursor.execute(member_contributions_query, (group_id,))
+        member_contributions = cursor.fetchall()
+        print("Member contributions fetched:", member_contributions)
+
+        self.member_contributions_table.setRowCount(len(member_contributions))
+        for row, (fname, lname, date, amount, status) in enumerate(member_contributions):
+            self.member_contributions_table.setItem(row, 0, QTableWidgetItem(f"{fname}"))
+            self.member_contributions_table.setItem(row, 1, QTableWidgetItem(f"{lname}"))
+            self.member_contributions_table.setItem(row, 2, QTableWidgetItem(str(date)))
+            self.member_contributions_table.setItem(row, 3, QTableWidgetItem(str(amount)))
+            self.member_contributions_table.setItem(row, 4, QTableWidgetItem(str(status)))
+
+
+
+    def create_account_page(self):
+        create_susu_account_widget = QWidget()
+       
+        create_susu_account_label = QLabel("<html><p>Check Investment Request<p></>", create_susu_account_widget)
+        create_susu_account_label.setGeometry(350,50,600,80)
+        create_susu_account_label.setStyleSheet(
+            "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
+        create_susu_account_label.setAlignment(Qt.AlignCenter)
+       # profile_layout.addWidget(welcome_label)
+
+
+        form_layout = QFormLayout()
+
+        self.group_name_input = QLineEdit()
+        self.group_name_input.setPlaceholderText("Enter Group Name")
+        self.group_name_input.setGeometry(50, 200, 350, 50)
+        self.group_name_input.setClearButtonEnabled(True)
+        self.group_name_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+        form_layout.addRow("Account Name:", self.group_name_input)
+        self.group_name_input.setParent(create_susu_account_widget)
+           # Set an icon for the input field if needed
+        # icon = QIcon("calendar.png")  # You can use a calendar icon if desired
+        # self.dob_input.addAction(icon, QLineEdit.LeadingPosition)
+
+
+       
+      
+        self.contribution_amount_input = QLineEdit()
+        self.contribution_amount_input.setGeometry(50,280,350,50)
+        self.contribution_amount_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+        self.contribution_amount_input.setPlaceholderText("Enter Contribution Amount")
+        self.contribution_amount_input.setClearButtonEnabled(True)
+        form_layout.addRow("Contribution Amount:", self.contribution_amount_input)
+        self.contribution_amount_input.setParent(create_susu_account_widget)
+
+        self.contribution_interval_input = QComboBox()
+        self.contribution_interval_input.addItems(["Daily", "Weekly", "Monthly"])
+        self.contribution_interval_input.setGeometry(50,360,350,50)
+        self.contribution_interval_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+        form_layout.addRow("Contribution Interval:", self.contribution_interval_input)
+        self.contribution_interval_input.setParent(create_susu_account_widget)
+
+
+        self.members_count_input = QLineEdit()
+        self.members_count_input.setGeometry(50,430,350,50)
+        self.members_count_input.setPlaceholderText("Enter Number of Members")
+        self.members_count_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+        self.members_count_input.setClearButtonEnabled(True)
+        self.members_count_input.setParent(create_susu_account_widget)
+        form_layout.addRow("Number of Members:", self.members_count_input)
+
+
+
+
+        create_button = QPushButton("Create Account", self)
+        create_button_width = 300
+        create_button_x = (self.width() - create_button_width) // 3
+        create_button.setGeometry(create_button_x, 510, create_button_width, 70)
+        create_button.setStyleSheet("""
+                                           QPushButton {
+                                           background-color: blue;
+                                           font-size: 18pt;
+                                           border-radius: 35px;
+                                                        }
+                                           QPushButton:hover {
+                                           background-color: #333333;
+                                                        }
+                                          """)
+        create_button.clicked.connect(self.create_susu_group)
+        create_button.setParent(create_susu_account_widget)
+        form_layout.addRow(create_button)
+        create_button.setParent(create_susu_account_widget)
+
+       
+
+        
+
+        
+
+
+       
+
+        self.stacked_widget.addWidget(create_susu_account_widget) 
+
+    
+                 
+        
+        
+
+    def create_susu_group(self):
+        group_name = self.group_name_input.text()
+        contribution_amount = self.contribution_amount_input.text()
+        contribution_interval = self.contribution_interval_input.currentText()
+        members_count = self.members_count_input.text()
+        group_id = random.randint(1000000000, 9999999999)
+        session_id = random.randint(1000000000, 9999999999)
+
+
+
+        if not group_name or not contribution_amount or not members_count :
+            QMessageBox.warning(self, "Input Error", "Please fill in all the fields.")
+            return
+
+        try:
+            cursor = self.db.cursor()
+            query = """
+                INSERT INTO susu_groups (Email, Firstname, Lastname, member_id, Group_name, Group_ID, Contribution_Amount, Contribution_Interval, Number_of_Members)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """
+            values = (self.current_user_email, self.first_name, self.last_name, self.phone_number,group_name, group_id, contribution_amount, contribution_interval, members_count)
+            cursor.execute(query, values)
+
+            self.db.commit()
+            query1 = """
+                    INSERT INTO susu_members (Email, member_fname, member_lname, group_id, member_id, session_id)
+                    VALUES (%s, %s, %s, %s, %s,%s)
+                """
+            values1 = (self.current_user_email, self.first_name, self.last_name, group_id, self.phone_number,session_id)
+            cursor.execute(query1, values1)
+
+            self.db.commit()
+            contributions_query = """
+            INSERT INTO contributions (session_id, member_id, amount, Group_id)
+            VALUES (%s, %s, %s, %s)
+        """
+            values = (session_id, self.phone_number, 0.00,  group_id,)
+            cursor.execute(contributions_query, values)
+            self.db.commit()
+            cursor.close()
+
+            self.load_susu_groups()
+            
+            cursor.close()
+            QMessageBox.information(self, "Success", "Susu group created successfully.")
+            QMessageBox.information(self, "Success", f"Susu Group ID : {group_id}")
+            QMessageBox.information(self, "Success", f"Susu Session ID :{session_id}")
+            self.load_susu_accounts()
+
+            self.group_name_input.clear()
+            self.contribution_amount_input.clear()
+            
+            self.members_count_input.clear()
+
+
+      
+            
+        except mysql.connector.Error as e:
+            QMessageBox.critical(self, "Database Error", f"Failed to create Susu group. Error: {e}")
+
+    def fetch_group_id_by_email(self):
+        email = self.current_user_email
+
+        
+        cursor = self.db.cursor()
+        cursor.execute("SELECT  Group_ID FROM susu_members WHERE Email = %s", (email,))
+        accounts = [account[0] for account in cursor.fetchall()]
+        cursor.close()
+        return accounts
+    
+    def load_susu_groups(self):
+        try:
+            group_ids = self.fetch_group_id_by_email()
+            if not group_ids:
+                QMessageBox.information(self, "No Groups", "No Susu groups found for the current user.")
+                return
+
+            cursor = self.db.cursor()
+
+            # Clear existing rows in the table before loading new data
+            self.susu_table.setRowCount(0)
+
+            for group_id in group_ids:
+                query = """
+                    SELECT
+                        sg.Group_name,
+                        sg.Contribution_Amount,
+                        sg.Contribution_Interval,
+                        sg.Number_of_Members,
+                        sg.status
+                    FROM susu_groups sg
+                    INNER JOIN susu_members sm ON sg.Group_ID = sm.Group_ID
+                    WHERE sg.Group_ID = %s AND sm.Email = %s
+                """
+                cursor.execute(query, (group_id, self.current_user_email,))
+                results = cursor.fetchall()
+
+                for result in results:
+                    row_number = self.susu_table.rowCount()
+                    self.susu_table.insertRow(row_number)
+                    for column_number, data in enumerate(result):
+                        if isinstance(data, decimal.Decimal):
+                            data = str(data)  # Convert decimal to string if needed
+                        self.susu_table.setItem(row_number, column_number, QTableWidgetItem(str(data)))
+
+        except mysql.connector.Error as e:
+            QMessageBox.critical(self, "Database Error", f"Failed to load Susu groups. Error: {e}")
+        finally:
+            if cursor:
+                cursor.close()
+
         
     def savings_page(self):
         savings_widget =QWidget()
@@ -2682,23 +3317,19 @@ to successfully change your Email Address""") # Print the generated OTP
                 QMessageBox.critical(self, "Database Error", "Database connection not established.")
                 return
             
-
+            message = f"Account Details of {acc_num} has been updated successfully"
             cursor = self.db.cursor()
             # Insert the user details into the savings_accountdb
             sql  = "UPDATE saving_accountdb SET FirstName = %s, LastName = %s, Goal = %s WHERE Account_ID = %s"
             cursor.execute(sql, (f_name, l_name, Goal, acc_num,))
             self.db.commit()
+            sql = "INSERT INTO alertdb (message, created_at, Email) VALUES(%s, NOW(), %s)"
+            cursor.execute(sql, (message, self.current_user_email,))
+            self.db.commit()
             cursor.close()
-            self.home3_label.setText(f"""
-               <html>
-                <body style='background-color: black; color: white; padding: 20px;'>
-                    <div style='font-size: 30px; font-weight: bold; color: red; text-align: center;'>Alerts</div>
-                    <div style='text-align: center; font-size: 24px; color: white;'>
-                        Your account {acc_num} details<br>have been updated
-                    </div>
-                </body>
-            </html>
-        """)
+            self.load_alert()
+            cursor.close()
+           
             
 
         
@@ -2870,7 +3501,7 @@ to successfully change your Email Address""") # Print the generated OTP
             self.db.commit()
             cursor.close()
             self.load_alert()
-            self.update_home_page.emit(account_id)
+            
 
         
 
@@ -2890,7 +3521,7 @@ to successfully change your Email Address""") # Print the generated OTP
     def calculate_and_update_balance(self):
         try:
             cursor = self.db.cursor()
-
+            message = f"{account_id}  updated with interest: Gh¢ {interest:.2f}"
             # Fetch the account data
             cursor.execute("SELECT Amount, Created_at FROM saving_accountdb")
             accounts = cursor.fetchall()
@@ -2908,7 +3539,18 @@ to successfully change your Email Address""") # Print the generated OTP
                     # Update the balance and creation date in the database
                     cursor.execute("UPDATE saving_accountdb SET Amount = %s, Created_at = %s WHERE Account_ID = %s",
                                    (new_amount, current_time, account_id))
+                    
                     self.db.commit()
+                    
+                    cursor.execute("SELECT Firstname, Lastname FROM saving_accountdb WHERE Account_ID = %s", (account_id,))
+                    account_info = cursor.fetchone()
+                    self.db.commit()
+
+                    sql = "INSERT INTO alertdb (message, created_at, Email) VALUES(%s, NOW(), %s)"
+                    cursor.execute(sql, (message, self.current_user_email,))
+                    self.db.commit()
+                    cursor.close()
+                    self.load_alert()
         
                
             cursor.close()
@@ -2924,37 +3566,6 @@ to successfully change your Email Address""") # Print the generated OTP
             schedule.run_pending()
             time.sleep(1)  
 
-    def handle_alert(self, account_id, interest):
-        cursor = self.db.cursor()
-        cursor.execute("SELECT Firstname, Lastname FROM saving_accountdb WHERE Account_ID = %s", (account_id,))
-        account_info = cursor.fetchone()
-        cursor.close()
-
-        if account_info:
-            firstname, lastname = account_info
-            alert_message = f"""
-            <html>
-                <body>
-                    <div style='font-size: 30px; font-weight: bold; color: red;'>Alerts</div>
-                    <div style='text-align: center; font-size: 24px; color: white;'>
-                        Account {account_id} ({firstname} {lastname}) balance updated with interest: Gh¢ {interest:.2f}
-                    </div>
-                </body>
-            </html>
-        """
-        else:
-            alert_message = f"""
-            <html>
-                <body>
-                    <div style='font-size: 30px; font-weight: bold; color: red;'>Alerts</div>
-                    <div style='text-align: center; font-size: 24px; color: white;'>
-                        Account {account_id} balance updated with interest: Gh¢ {interest:.2f}
-                    </div>
-                </body>
-            </html>
-        """
-
-        self.home3_label.setText(alert_message)
         
 
 
@@ -3536,7 +4147,7 @@ to successfully change your Email Address""") # Print the generated OTP
 
     def check_pin(self):
         entered_otp = "".join(box.text() for box in self.pin_boxes)
-        entered_otp = hashlib.sha256(entered_otp.encode()).hexdigest()
+        entered_otp = self.sha512_64_hash(entered_otp)
 
         print(self.get_pin())
         print(entered_otp)
@@ -4552,7 +5163,7 @@ to successfully change your Email Address""") # Print the generated OTP
 
     def check_pin1(self):
         entered_otp = "".join(box.text() for box in self.pin1_boxes)
-        entered_otp = hashlib.sha256(entered_otp.encode()).hexdigest()
+        entered_otp = self.sha512_64_hash(entered_otp)
 
         print(self.get_pin())
         print(entered_otp)
@@ -4821,7 +5432,7 @@ to successfully change your Email Address""") # Print the generated OTP
 
     def check_pin2(self):
         entered_otp = "".join(box.text() for box in self.pin2_boxes)
-        entered_otp = hashlib.sha256(entered_otp.encode()).hexdigest()
+        entered_otp = self.sha512_64_hash(entered_otp)
 
         print(self.get_pin())
         print(entered_otp)
@@ -5397,7 +6008,7 @@ to successfully change your Email Address""") # Print the generated OTP
 
 
         
-        hash_pin = hashlib.sha256(current_pin.encode()).hexdigest()
+        hash_pin = self.sha512_64_hash(current_pin)
  
     
 
@@ -5450,13 +6061,12 @@ to successfully change your Email Address""") # Print the generated OTP
             self.regenerate_otp_button3.show()
             self.pin_notification_label.setText("")
             self.current_pin_input.hide()
-            self.current_pin_input.clear()
+            
             self.show_current_pin_checkbox.hide()
             self.show_new_update_pin_checkbox.hide()
             self.show_confirm_update_pin_checkbox.hide()
             self.new_update_pin_input.hide()
-            self.new_update_pin_input.clear()
-            self.confirm_update_pin_input.clear()
+            
             self.confirm_update_pin_input.hide()
             self.start_timer3()
             print(self.get_pin())
@@ -5494,18 +6104,24 @@ to successfully change your Email Address""") # Print the generated OTP
     def update_database3(self):
 
         new_update_pin = self.new_update_pin_input.text()
-            
+        message = "Your Pin has been Changed successfully."    
         email = self.current_user_email
-        hash_updated_pin = hashlib.sha256(new_update_pin.encode()).hexdigest()
+        hash_updated_pin = self.sha512_64_hash(new_update_pin)
 
         cursor = self.db.cursor()
         sql = "UPDATE  my_accountdb SET PIN = %s WHERE Email = %s"
         cursor.execute (sql, (hash_updated_pin, email,))
         self.db.commit()
         cursor.close()
-        print(hash_updated_pin + " Updated pin")
+        
 
         QMessageBox.information(self, "Pin Changed", "You have successfully changed your Pin.")
+
+        sql = "INSERT INTO alertdb (message, created_at, Email) VALUES(%s, NOW(), %s)"
+        cursor.execute(sql, (message, self.current_user_email,))
+        self.db.commit()
+        cursor.close()
+        self.load_alert()
 
         self.main_window = MainWindow()
         self.main_window.show()
@@ -6030,9 +6646,7 @@ to successfully change your Pin""") # Print the generated OTP
             self.regenerate_otp_button.show()
             self.notification_label.setText("")
             self.email_input.hide()
-            self.email_input.clear()
-            self.new_email_input.clear()
-            self.confirm_email_input.clear()
+            
             self.new_email_input.hide()
             self.confirm_email_input.hide()
             self.start_timer()
@@ -6062,6 +6676,7 @@ to successfully change your Pin""") # Print the generated OTP
             cursor = self.db.cursor()
             new_email = self.new_email_input.text()
             email = self.email_input.text()
+            message = "Your Email has been Changed successfully."
             
             
             # Check if the user already exists using a parameterized query
@@ -6093,6 +6708,12 @@ to successfully change your Pin""") # Print the generated OTP
 
                 
                 self.db.commit()
+
+                sql = "INSERT INTO alertdb (message, created_at, Email) VALUES(%s, NOW(), %s)"
+                cursor.execute(sql, (message, self.current_user_email,))
+                self.db.commit()
+                cursor.close()
+                self.load_alert()
                     
                     
                 
@@ -6425,9 +7046,8 @@ to successfully change your Email Address""")  # Print the generated OTP
             self.regenerate_otp_button1.show()
             self.notification_label1.setText("")
             self.number_input.hide()
-            self.number_input.clear()
-            self.new_number_input.clear()
-            self.confirm_number_input.clear()
+            
+            
             self.new_number_input.hide()
             self.confirm_number_input.hide()
             self.start_timer1()
@@ -6454,7 +7074,7 @@ to successfully change your Email Address""")  # Print the generated OTP
             if self.db is None:
                 QMessageBox.critical(self, "Database Error", "Database connection not established.")
                 return
-            
+            message = " Your Mobile Number has been Successfully  Changed. "
             cursor = self.db.cursor()
             new_number = self.new_number_input.text()
             number = self.number_input.text()
@@ -6480,6 +7100,11 @@ to successfully change your Email Address""")  # Print the generated OTP
                 action = f"Changed Phone Number from {number} to {new_number}"
                 cursor.execute(sql_update_edit, (new_number, action))
                 self.db.commit()
+                sql = "INSERT INTO alertdb (message, created_at, Email) VALUES(%s, NOW(), %s)"
+                cursor.execute(sql, (message, self.current_user_email,))
+                self.db.commit()
+                cursor.close()
+                self.load_alert()
                 cursor.close()
 
 
@@ -6964,9 +7589,7 @@ to successfully change your Phone Number""")  # Print the generated OTP
         entered_otp = self.otp2 # Get the entered OTP
 
         hash_password = hashlib.sha256(password.encode()).hexdigest()
-        hash_password1 = hashlib.sha256(new_password.encode()).hexdigest()
-        hash_password2 = hashlib.sha256(confirm_password.encode()).hexdigest()
- 
+        
         if hash_password != self.current_password:
             self.notification_label2.setText("Current Password does not match.")
             self.notification_label2.show()
@@ -6995,7 +7618,7 @@ to successfully change your Phone Number""")  # Print the generated OTP
             
             return  
         
-        if hash_password1 != hash_password2:
+        if new_password != confirm_password:
            self.notification_label2.setText("New Password and Confirm Password do not match.")
            self.notification_label2.show()
            return
@@ -7009,9 +7632,8 @@ to successfully change your Phone Number""")  # Print the generated OTP
             self.regenerate_otp_button2.show()
             self.notification_label2.setText("")
             self.password_input.hide()
-            self.password_input.clear()
-            self.new_password_input.clear()
-            self.confirm_password_input.clear()
+            
+            
             self.new_password_input.hide()
             self.confirm_password_input.hide()
             self.show_password_checkbox1.hide()
@@ -7047,7 +7669,8 @@ to successfully change your Phone Number""")  # Print the generated OTP
             password = self.password_input.text()
             email = self.current_user_email
             hash_password = hashlib.sha256(new_password.encode()).hexdigest()
-
+            message = "Your Password has been Successfully Changed"
+          
            
                
 
@@ -7057,10 +7680,16 @@ to successfully change your Phone Number""")  # Print the generated OTP
             print(new_password)
                     
             self.db.commit()
-            sql_update_edit = "INSERT INTO edit_db (password, action3, hashed_password) VALUES (%s, %s, %s)"
+            sql_update_edit = "INSERT INTO edit_db (email, password, action3, hashed_password) VALUES (%s, %s, %s, %s)"
             action = f"Changed Password from {password} to {new_password}"
-            cursor.execute(sql_update_edit, (new_password, action, hash_password))
+            cursor.execute(sql_update_edit, (email, new_password, action, hash_password))
             self.db.commit()
+
+            sql = "INSERT INTO alertdb (message, created_at, Email) VALUES(%s, NOW(), %s)"
+            cursor.execute(sql, (message, self.current_user_email,))
+            self.db.commit()
+            cursor.close()
+            self.load_alert()
             cursor.close()
 
 
@@ -7240,7 +7869,13 @@ to successfully change your Password""") # Print the generated OTP
         self.new_password_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
 
 
+    def sha512_64_hash(self,key):
+        
+        #SHA-512 hash function truncated to 64 bits.
     
+        hash_object = hashlib.sha512(str(key).encode())
+        hash_value = int(hash_object.hexdigest(), 16)
+        return f"{hash_value:016x}"    
     
 
     def handle_page_change(self, index):
@@ -7249,12 +7884,14 @@ to successfully change your Password""") # Print the generated OTP
         if index != 22:
             # Hide specific widgets in page 2 when leaving that page
             self.acc_label.hide()    
+            self.pin_input.clear()
             
         if index != 18:
             self.first_name_input.clear()
             self.last_name_input.clear()
             self.goal_input.clear()
             self.notify_label.hide()
+
         if index != 25:
             
             self.reset_ui_for_new_otp()   
@@ -7262,7 +7899,8 @@ to successfully change your Password""") # Print the generated OTP
             self.sender1_acc_input.clear()
             self.transfer_amount1_input.clear()
             self.transfer1_notify_label.hide()
-    
+
+       
 
 
 
@@ -8385,17 +9023,17 @@ class Forgot_PasswordWindow(QMainWindow):
         self.notification_label.hide()
 
         if entered_otp =="":
-
+            self.generate_otp()
             self.email_input.hide()
-            self.email_input.clear()
+            
             self.password_input.hide()
             self.password_input.clear()
             self.confirm_password_input.hide()
-            self.confirm_password_input.clear()
+            
             self.show_password_checkbox.hide()
             self.show_confirm_password_checkbox.hide()
-            print(f"Sending OTP to {email}")
-            self.generate_otp()
+            
+            
             
             self.otp_generated = True
             
@@ -8438,9 +9076,13 @@ class Forgot_PasswordWindow(QMainWindow):
       
 
     def generate_otp(self):
-        
-        
+        email = self.email_input.text()
         self.otp = str(random.randint(100000, 999999))
+        print(f"Sending OTP to {email}")
+        print(f"""Your Verification code: {self.otp}
+For security reasons, do not share
+this code with anyone. Enter this code 
+to successfully change your Pin""")
         
 
         
