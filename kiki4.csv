@@ -1,0 +1,9 @@
+Date,From Account,To Account,Debit,Credit,Transaction ID,Type
+2024-05-21 02:40:50,Mobile Wallet,Wallet,50.00,50.00,a46abb65-4824-4bc6-8606-024a8a69b803,External
+2024-05-21 02:37:46,Mobile Wallet,Wallet,50.00,50.00,2b077e0b-c634-42bf-81c0-9483faa3b6ce,External
+2024-05-21 02:35:09,Mobile Wallet,Wallet,1000.00,1000.00,4a16d129-bf88-478e-a5db-e250e3bc0ea3,External
+2024-05-21 02:34:44,Mobile Wallet,Wallet,200.00,200.00,506a6ecc-aaa2-40d7-bff8-2fba4e20a2b5,External
+2024-05-21 02:34:16,Mobile Wallet,Wallet,20.00,20.00,9d07c283-2a2b-45b4-bb7b-243efbe82a53,External
+2024-05-21 02:30:17,Mobile Wallet,Wallet,50.00,50.00,629800e4-1b0a-47fd-a6ce-0dd193188e39,Internal
+2024-05-21 02:08:40,Mobile Wallet,Wallet,200.00,200.00,7d964197-0a8c-4a29-b4a1-8b994032afcb,Internal
+2024-05-21 02:05:35,Mobile Wallet,Wallet,500.00,500.00,d01e1cf5-cc6a-45bc-bf12-563d471ac62e,Internal

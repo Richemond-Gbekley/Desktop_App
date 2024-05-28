@@ -2,22 +2,28 @@ import sys
 import uuid
 import hashlib
 import re
+import logging
 import random
 import datetime
 import schedule
 import time
 import decimal
+from scheduler import start_scheduler
 import csv
 import mysql.connector
+from scheduler import start_scheduler
+from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime, timedelta
 from PyQt5.QtCore import pyqtSlot
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from PyQt5 import QtCore 
+from PyQt5 import QtGui
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QIcon
 from PyQt5.QtGui import QPixmap,QPalette,QBrush,QPen,QPainter, QColor
 from PyQt5.QtCore import QRectF, QPoint, QObject,pyqtSignal, Qt, QPropertyAnimation, QRect, QTimer, QSize,QDate ,QCalendar ,QDateTime# Qt core manages the alignment, and the Qpropertyanimation, with the Qreact handles the animation
 from PyQt5.QtWidgets import QApplication, QMainWindow,QFormLayout, QAbstractItemView,QTableWidget,QTableWidgetItem,QLabel,QListWidgetItem,QListWidget, QVBoxLayout,QFileDialog, QPushButton, QWidget, QLineEdit, QComboBox,QTextEdit, QStyle, QAction, QToolBar,QToolButton, QCheckBox, QMenu, QDateEdit, QMessageBox,QCalendarWidget,QStackedWidget,QFrame,QHBoxLayout
+logging.basicConfig(level=logging.DEBUG)
 
 
 class LoginWindow(QMainWindow):
@@ -117,7 +123,7 @@ class LoginWindow(QMainWindow):
         self.email_input.setGeometry(575, 290, 350, 50)  # Adjust the position and size of the input field
 
         # Set placeholder text for the email input field
-        self.email_input.setPlaceholderText("Enter Email, or , Mobile Address")
+        self.email_input.setPlaceholderText("Enter Email")
 
 
         # Apply styling to the email input field
@@ -363,7 +369,7 @@ class LoginWindow(QMainWindow):
 
 
 class Main1Window(QMainWindow):
-    update_home_page = pyqtSignal(str)
+    
     
   
     def __init__(self, db, current_user_email,Firstname,Lastname, Phonenumber, current_password):
@@ -372,7 +378,7 @@ class Main1Window(QMainWindow):
         self.setGeometry(100, 100, 1500, 900)
           # Create a signal manager instance
         
-
+    
    
 
         self.current_user_email = current_user_email 
@@ -467,11 +473,14 @@ class Main1Window(QMainWindow):
         self.my_saving_account() #26
         self.transfer_to_my_account() #27
         self.saving_to_my_account_transfer()#28
-        self.investment_to_my_account_transfer() #29
+        self.susu_to_my_wallet_transfer() #29
         self.mobile_wallet_to_account_transfer() #30
         self.transfer_to_my_saving_account() #31
-        self.transfer_to_investment_account() #32
+        self.transfer_to_susu_account() #32
         self.join_susu_group() #33
+        self.personal_susu_account() #34
+        self.forgot_pin() #35
+        self.transfer_to_susu_group() #36
         
         self.stacked_widget.currentChanged.connect(self.handle_page_change)
 
@@ -491,7 +500,7 @@ class Main1Window(QMainWindow):
 
         Home_button = QPushButton("Dashboard", self.frame)
        
-        Home_button.setGeometry(10, 150, 150, 30)
+        Home_button.setGeometry(-20, 150, 200, 30)
         self.set_button_icon0(Home_button, "home.png")  # Set button icon
         Home_button.setStyleSheet("""
                              QPushButton {
@@ -526,8 +535,8 @@ class Main1Window(QMainWindow):
         
 
         susu_button = QPushButton("Susu", self.frame)
-        susu_button.setGeometry(-7,310,150,30)
-        self.set_button_icon2(susu_button, "investment.png")
+        susu_button.setGeometry(-19,310,150,30)
+        self.set_button_icon2(susu_button, "group.png")
         susu_button.setStyleSheet("""
                              QPushButton {
                              background-color: transparent;
@@ -631,10 +640,10 @@ class Main1Window(QMainWindow):
         account_button.setIcon(icon)
         account_button.setIconSize(account_button.size())  # Set icon size to button size
     
-    def set_button_icon2(self, investment_button, icon_path):
+    def set_button_icon2(self, susu_button, icon_path):
         icon = QIcon(icon_path)
-        investment_button.setIcon(icon)
-        investment_button.setIconSize(investment_button.size())  # Set icon size to button size
+        susu_button.setIcon(icon)
+        susu_button.setIconSize(susu_button.size())  # Set icon size to button size
     
 
     def set_button_icon3(self, savings_button, icon_path):
@@ -688,25 +697,12 @@ class Main1Window(QMainWindow):
 
         transaction_alert = self.transactions()
 
-        
-        
-
         # Calendar Widget
         calendar = self.calendar()
         
-
         alert = self.alert()
-
-        
         
         user_info = self.user_info()
-        
-        
-
-        
-
-       
-
         
         logout_button = QPushButton(self)
         logout_button.setGeometry(950,800,300,70)
@@ -851,11 +847,24 @@ class Main1Window(QMainWindow):
         cursor.close()
 
     # Add transactions to the transaction list
+        if not alerts:
+            no_alerts_item = QListWidgetItem("No alerts to display.")
+            no_alerts_item.setForeground(QtGui.QColor("white"))
+            self.alert_list.addItem(no_alerts_item)
+            return
+         # Add alerts to the alert list
         for alert in alerts:
-                created_at, message = alert
-                item_text1 = f"{created_at} - {message}"
-                item1 = QListWidgetItem(item_text1)
-                self.alert_list.addItem(item1)
+            created_at, message = alert
+            item_text = f"{created_at} - {message}"
+            item = QListWidgetItem(item_text)
+
+        # Check if the alert is new (within the last 24 hours)
+            if (datetime.now() - created_at).days < 1:
+                item.setForeground(QtGui.QColor("red"))  # New messages in red
+            else:
+                item.setForeground(QtGui.QColor("white"))  # Old messages in white
+
+            self.alert_list.addItem(item)
 
     def transactions(self):
         self.transaction_widget = QWidget()
@@ -889,16 +898,26 @@ class Main1Window(QMainWindow):
         transactions = cursor.fetchall()
         cursor.close()
 
+        if not transactions:
+            no_transactions_item = QListWidgetItem("No transactions to display.")
+            no_transactions_item.setForeground(QtGui.QColor("white"))
+            self.transaction_list.addItem(no_transactions_item)
+            return
+
     # Add transactions to the transaction list
         for transaction in transactions:
                 date, from_account, to_account, debit, credit, transaction_id, type_ = transaction
                 item_text = f"{date} - {from_account} to {to_account}: {debit if debit else credit} ({type_})"
                 item = QListWidgetItem(item_text)
+
+                # Check if the transaction is new (within the last 24 hours)
+                if (datetime.now() - date).days < 1:
+                    item.setForeground(QtGui.QColor("red"))  # New transactions in red
+                else:
+                    item.setForeground(QtGui.QColor("white"))  # Old transactions in white
+
                 self.transaction_list.addItem(item)
   
-
- 
-
 
 
         
@@ -963,38 +982,6 @@ class Main1Window(QMainWindow):
 
         return self.user_info_widget
 
-            
-
-
-        
-        
-        
-        
-        
-        
-    def update_home_page_slot(self, account_id):
-
-       # Load circular icon
-        pixmap = QPixmap("user.png")  # Replace with your circular icon path
-
-        # Create HTML for icon and account ID
-        account_info_html = f"""
-            <div style='display: flex; align-items: center;'>
-                <img src='user.png' width='50' height='50' style='border-radius: 50%; margin-right: 10px;'>
-                <div style='font-size: 18px; color: white;'>{account_id}</div>
-            </div>
-        """
-        
-
-        # Update the QLabel's HTML content
-        self.home2_label.setText(f"""
-            <html>
-                <body>
-                    <div style='font-size: 30px; font-weight: bold; color: red;'>Accounts</div>
-                    {account_info_html}
-                </body>
-            </html>
-        """)
         
     def setCircularIcon(self, label, icon_path, size=80, position=(10, 10)):
         pixmap = QPixmap(icon_path).scaled(QSize(size, size), Qt.KeepAspectRatio)
@@ -1015,6 +1002,12 @@ class Main1Window(QMainWindow):
         label.move(position[0], position[1])  # Set the position
         label.setScaledContents(True)
 
+    def closeEvent(self, event):
+
+           
+        event.accept()
+           
+
     def open_main_window(self):
 
         try:
@@ -1032,7 +1025,12 @@ class Main1Window(QMainWindow):
             cursor.close()
 
             QMessageBox.information(self, "Logout", "You have been logged out successfully.")
+             # Create and show the MainWindow instance
+            self.main_window = MainWindow()
+            self.main_window.show()
 
+        # Set the is_logging_out flag to True
+            
             # Close the Main1Window after logout
             self.close()
         
@@ -1043,6 +1041,8 @@ class Main1Window(QMainWindow):
         self.main_window = MainWindow()
         self.main_window.show()
         self.close()   
+
+  
 
     def account_page(self):
         account_widget =QWidget()
@@ -1195,15 +1195,15 @@ class Main1Window(QMainWindow):
 
 
         
-        investment_account_button = QPushButton(self)
-        investment_account_button.setGeometry(50, 330, 500, 50)
+        susu_account_button = QPushButton(self)
+        susu_account_button.setGeometry(50, 330, 500, 50)
                          
         # Set the icon size explicitly
         icon_size = QSize(30, 30)  # Adjust the size as needed
-        investment_account_button.setIconSize(icon_size)
+        susu_account_button.setIconSize(icon_size)
 
          # Set the icon position to the left side of the button
-        investment_account_button.setStyleSheet("""
+        susu_account_button.setStyleSheet("""
                         QPushButton {
                                      background-color: white;
                                      font-size: 12pt; 
@@ -1224,14 +1224,14 @@ class Main1Window(QMainWindow):
 
 # Set the icon to the left of the button text
         icon = QIcon("financial.png")
-        investment_account_button.setIcon(icon)
+        susu_account_button.setIcon(icon)
 
 # Set the text for the button
-        investment_account_button.setText(" | Investment Account")
+        susu_account_button.setText(" | Susu Account")
 
-      #  my_account_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(9))
+        susu_account_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(34))
 
-        investment_account_button.setParent(balance_widget)
+        susu_account_button.setParent(balance_widget)
 
 
         
@@ -1317,7 +1317,141 @@ class Main1Window(QMainWindow):
 
        
 
-        self.stacked_widget.addWidget(balance_widget)    
+        self.stacked_widget.addWidget(balance_widget)  
+
+    def personal_susu_account(self):
+        personal_susu_account__widget = QWidget()
+       
+        personal_susu_account_label = QLabel("<html><p>Susu Balance Enquiry<p></>", personal_susu_account__widget)
+        personal_susu_account_label.setGeometry(350,50,600,80)
+        personal_susu_account_label.setStyleSheet(
+            "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
+        personal_susu_account_label.setAlignment(Qt.AlignCenter)
+
+        
+        self.susu_acc_label = QLabel("<html><p>Gh¢ ×.×× <p></>", personal_susu_account__widget)
+        self.susu_acc_label.setGeometry(900,180,300,300)
+        self.susu_acc_label.setStyleSheet(
+            "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
+        self.susu_acc_label.setAlignment(Qt.AlignCenter)
+        self.susu_acc_label.hide()
+        self.susu_acc_label.setParent(personal_susu_account__widget)
+
+
+         # Create a line edit for password input field
+        self.susu_pin_input = QLineEdit(self)
+        susu_input_width = 350
+        susu_input_x = (self.width() - susu_input_width) // 9
+        self.susu_pin_input.setGeometry(susu_input_x, 200, susu_input_width, 50)
+        # Set placeholder text for the password input field
+        self.susu_pin_input.setPlaceholderText("Enter Pin")
+        # Appply styling to the password input field
+        self.susu_pin_input.setStyleSheet("border-radius: 25; padding : 10px; font-size: 16px; ")
+        # Enable the clear button to the clear input
+        self.susu_pin_input.setClearButtonEnabled(True)
+        # Set an icon for the input field
+        icon = QIcon("padlock.png")
+        self.susu_pin_input.addAction(icon, QLineEdit.LeadingPosition)
+        self.susu_pin_input.setEchoMode(QLineEdit.Password)
+      #  self.pin_input.textChanged.connect(self.validate_pin)
+        self.susu_pin_input.editingFinished.connect(self.reset_susu_pin_input_style)
+        self.susu_pin_input.setParent(personal_susu_account__widget)
+        
+
+
+        # Create checkbox to toggle password visibility
+        self.show_pin_checkbox = QCheckBox("Show Pin", self)
+        self.show_pin_checkbox.setStyleSheet("color: black; font-size : 16px")
+        box_width = 150
+        box_x = (self.width() - box_width) // 10
+        self.show_pin_checkbox.setGeometry(box_x, 247, box_width , 30)
+        self.show_pin_checkbox.stateChanged.connect(self.toggle_susu_pin_visibility)
+
+        self.show_pin_checkbox.setParent(personal_susu_account__widget)
+
+
+
+
+        
+        self.check_button = QPushButton("Check Balance", self)
+        button_width = 300  # Adjust the width of the button as needed
+        button_x = (self.width() - button_width) // 8  # Center the button horizontally
+        self.check_button.setGeometry(button_x, 320, button_width, 70)
+        self.check_button.setStyleSheet("""
+                     QPushButton {
+                     background-color: blue;
+                      font-size: 18pt; 
+                      border-radius: 35px;
+                      }
+                       QPushButton:hover{
+                          background-color:brown
+                      }
+                  """)
+        
+        self.check_button.clicked.connect(self.check_my_susu_balance)
+        self.check_button.setParent(personal_susu_account__widget)
+
+
+        self.stacked_widget.addWidget(personal_susu_account__widget)
+
+    def check_my_susu_balance(self):
+        self.check_susu_pin_and_activate()
+        
+
+
+
+            
+    def check_susu_pin_and_activate(self):
+         # Check if the user's account is activated by checking if the PIN is set
+        cursor = self.db.cursor()
+        email = self.current_user_email  # Assuming you have stored the current user's email
+        cursor.execute("SELECT Pin FROM susu_account WHERE Email = %s", (email,))
+        result = cursor.fetchone()
+        
+
+        if result and result[0]:  # PIN exists and is not empty
+            # Account is activated, proceed to verify PIN
+            self.verify_susu_pin()
+        else:
+            # Account is not activated (PIN is empty), show appropriate message
+            QMessageBox.warning(self, "Account Not Activated", "Please join a susu group to activate your account.")
+
+
+    def verify_susu_pin(self):
+
+        susu_pin = self.susu_pin_input.text()
+        email = self.current_user_email
+        
+
+        if susu_pin == "" :
+            QMessageBox.information(self, "Pin field is empty", "Please Enter Pin")
+            return
+
+
+
+        try:
+            susu_pin = self.susu_pin_input.text()
+            susu_PIN = self.sha512_64_hash(susu_pin) 
+            cursor = self.db.cursor()
+            
+            
+            cursor.execute("SELECT Balance FROM susu_account WHERE Email = %s AND Pin = %s", (email, susu_PIN))
+            result = cursor.fetchone()
+
+            if result:
+                balance = result[0]
+                self.susu_acc_label.setText(f"Gh¢{balance}.")
+                self.susu_acc_label.show()
+                
+            else:
+                QMessageBox.warning(self, "Incorrect PIN", "Please enter the correct PIN.")
+
+            cursor.close()
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Unable to fetch account balance: {e}")
+
+    
+
     def myaccount_page(self, db, current_user_email):
         self.current_user_email = current_user_email
         self.db = db
@@ -1390,7 +1524,7 @@ class Main1Window(QMainWindow):
                                   font-size: 15pt;
                               }
                           """)
-       # self.forgot_pin_button.clicked.connect(self.open_forgot_password_window)
+        self.forgot_pin_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(35))
         self.forgot_pin_button.setParent(mybalance_widget)
 
 
@@ -1440,6 +1574,486 @@ class Main1Window(QMainWindow):
 
         
         self.stacked_widget.addWidget(mybalance_widget)
+
+    def forgot_pin(self):    
+
+        forgot_pin_widget = QWidget()
+       
+        forgot_pin_label = QLabel("<html><p>Forgot Pin Page<p></>", forgot_pin_widget)
+        forgot_pin_label.setGeometry(350,50,600,80)
+        forgot_pin_label.setStyleSheet(
+            "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
+        forgot_pin_label.setAlignment(Qt.AlignCenter)
+       # profile_layout.addWidget(welcome_label)
+
+       
+        # Create a line edit for the email input field
+        self.email_input_for_forgot_pin = QLineEdit(self)
+        self.email_input_for_forgot_pin.setGeometry(50, 200, 350, 50)  # Adjust the position and size of the input field
+        # Set placeholder text for the email input field
+        self.email_input_for_forgot_pin.setPlaceholderText(" Enter Current Email ")
+        # Apply styling to the email input field
+        self.email_input_for_forgot_pin.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+        # Enable the clear button to clear the input
+        self.email_input_for_forgot_pin.setClearButtonEnabled(True)
+        # Set an icon for the input field
+        icon = QIcon("message.png")  # Replace "icon.png" with the path to your icon file
+        self.email_input_for_forgot_pin.addAction(icon, QLineEdit.LeadingPosition)
+
+        # Connect textChanged signal to validate_email slot
+        self.email_input_for_forgot_pin.textChanged.connect(self.validate_email_input_for_forgot_pin_style)
+        self.email_input_for_forgot_pin.editingFinished.connect(self.reset_email_input_for_forgot_pin_style)
+        self.email_input_for_forgot_pin.setParent(forgot_pin_widget)
+
+         # Create a line edit for password input field
+        self.forgot_pin_input = QLineEdit(self)
+        self.forgot_pin_input.setGeometry(50, 280, 350, 50)
+        # Set placeholder text for the password input field
+        self.forgot_pin_input.setPlaceholderText("Enter New Pin")
+        # Appply styling to the password input field
+        self.forgot_pin_input.setStyleSheet("border-radius: 25; padding : 10px; font-size: 16px; ")
+        # Enable the clear button to the clear input
+        self.forgot_pin_input.setClearButtonEnabled(True)
+        # Set an icon for the input field
+        icon = QIcon("padlock.png")
+        self.forgot_pin_input.addAction(icon, QLineEdit.LeadingPosition)
+        self.forgot_pin_input.setEchoMode(QLineEdit.Password)
+        self.forgot_pin_input.textChanged.connect(self.validate_forgot_pin)
+        self.forgot_pin_input.editingFinished.connect(self.reset_forgot_pin_input_style)
+        self.forgot_pin_input.setParent(forgot_pin_widget)
+
+
+        # Create checkbox to toggle password visibility
+        self.forgot_pin_checkbox = QCheckBox("Show Pin", self)
+        self.forgot_pin_checkbox.setStyleSheet("color: black; font-size : 16px")
+        self.forgot_pin_checkbox.setGeometry(50, 327, 150 , 30)
+        self.forgot_pin_checkbox.stateChanged.connect(self.toggle_forgot_pin_visibility)
+
+        self.forgot_pin_checkbox.setParent(forgot_pin_widget)
+
+
+            # Create a line edit for password input field
+        self.confirm_forgot_pin_input = QLineEdit(self)
+        self.confirm_forgot_pin_input.setGeometry(50, 380, 350, 50)
+        # Set placeholder text for the password input field
+        self.confirm_forgot_pin_input.setPlaceholderText("Confirm New Pin")
+        # Appply styling to the password input field
+        self.confirm_forgot_pin_input.setStyleSheet("border-radius: 25; padding : 10px; font-size: 16px; ")
+        # Enable the clear button to the clear input
+        self.confirm_forgot_pin_input.setClearButtonEnabled(True)
+        # Set an icon for the input field
+        icon = QIcon("padlock.png")
+        self.confirm_forgot_pin_input.addAction(icon, QLineEdit.LeadingPosition)
+        self.confirm_forgot_pin_input.setEchoMode(QLineEdit.Password)
+        self.confirm_forgot_pin_input.textChanged.connect(self.validate_confirm_forgot_pin)
+        self.confirm_forgot_pin_input.editingFinished.connect(self.reset_confirm_forgot_pin_input_style)
+        self.confirm_forgot_pin_input.setParent(forgot_pin_widget)
+
+
+        # Create checkbox to toggle password visibility
+        self.show_confirm_forgot_pin_checkbox = QCheckBox("Show Pin", self)
+        self.show_confirm_forgot_pin_checkbox.setStyleSheet("color: black; font-size : 16px")
+        self.show_confirm_forgot_pin_checkbox.setGeometry(40, 427, 150 , 30)
+        self.show_confirm_forgot_pin_checkbox.stateChanged.connect(self.toggle_confirm_forgot_pin_visibility)
+
+        self.show_confirm_forgot_pin_checkbox.setParent(forgot_pin_widget)
+
+          # Create QLabel for notification messages
+        self.forgot_pin_notification_label = QLabel("", self)
+        self.forgot_pin_notification_label.setGeometry(50, 480, 600, 50)
+        self.forgot_pin_notification_label.setStyleSheet("color: red; font-size: 25px;")
+        self.forgot_pin_notification_label.setParent(forgot_pin_widget)
+
+
+
+        self.forgot_pin_save_and_submit_button = QPushButton("Save and Submit", self)
+        forgot_button_width = 300  # Adjust the width of the button as needed
+        forgot_button_x = (self.width() - forgot_button_width) // 3  # Center the button horizontally
+        self.forgot_pin_save_and_submit_button.setGeometry(forgot_button_x, 600, forgot_button_width, 70)
+        self.forgot_pin_save_and_submit_button.setStyleSheet("""
+                     QPushButton {
+                     background-color: blue;
+                      font-size: 18pt; 
+                      border-radius: 35px;
+                      }
+                       QPushButton:hover{
+                          background-color:brown
+                      }
+                  """)
+        
+        self.forgot_pin_save_and_submit_button.clicked.connect(self.forgot_pin_save_and_submit)
+        self.forgot_pin_save_and_submit_button.setParent(forgot_pin_widget)
+
+        self.regenerate_otp_for_forgot_pin_button = QPushButton(self)
+        self.regenerate_otp_for_forgot_pin_button.setIcon(QIcon("refresh-page-option.png"))  # Set the icon for the button
+        self.regenerate_otp_for_forgot_pin_button.setToolTip("Regenerate OTP")  # Optional tooltip for the button
+        # Adjust the position and size of the button as needed
+        self.regenerate_otp_for_forgot_pin_button.setGeometry(410, 340, 40, 40)
+        self.regenerate_otp_for_forgot_pin_button.setStyleSheet("""
+                     QPushButton {
+                     background-color: blue;
+                      font-size: 18pt; 
+                      border-radius: 35px;
+                      }
+                       QPushButton:hover{
+                          background-color:#333333
+                      }
+                  """)
+        self.regenerate_otp_for_forgot_pin_button.hide()
+        self.regenerate_otp_for_forgot_pin_button.clicked.connect(self.generate_otp6)  # Connect the clicked signal
+        self.regenerate_otp_for_forgot_pin_button.setParent(forgot_pin_widget)
+        
+     
+
+        self.otp_generated6 = False
+        self.otp6 = ""
+
+        #Create a QLabel for the information display 
+        self.info_label6_widget = QWidget()
+        self.info_label6 = QLabel("<html><p>Enter the OTP....You have 1 minutes<p></html> ", self.info_label6_widget)
+        self.info_label6.setAlignment(Qt.AlignCenter)
+        self.info_label6.setGeometry(50,200,400,40)
+        self.info_label6.setStyleSheet("background-color: black; color: white; padding: 10px; border-radius: 100px; font-size: 10pt;")
+        self.info_label6.hide() # Hide the info label initially
+        self.info_label6.setParent(forgot_pin_widget)
+        
+
+        #create a container widget for the otp input
+        self.container6 = QWidget()
+        self.container6.setGeometry(50,240,400,100)
+        self.container6.setStyleSheet("background-color: blue; border-radius: 5px; padding: 5px;")
+        self.container6.hide()
+        self.container6.setParent(forgot_pin_widget)
+        
+
+        # Create a QVBoxLayout for the container
+        self.container_layout6 = QVBoxLayout(self.container6)
+        self.container_layout6.setContentsMargins(0, 0, 0, 0)  # No margins
+       # self.container_layout.setParent(email_widget)
+
+
+       
+
+        #Create a QHBoxlayout for the OTP boxes 
+        self.layout = QHBoxLayout()
+        self.layout.setContentsMargins(10,10,10,10) #set Margins
+      #  self.layout.setParent(email_widget)
+
+        #Create Six QLineEDIT Boxes for the otp
+        self.otp6_boxes = []
+        for _ in range(6):
+            otp6_box = QLineEdit(self.container6)
+            otp6_box.setFixedSize(50, 50)  # Set fixed size for each box
+            otp6_box.setMaxLength(1)  # Limit input to one character
+            otp6_box.setAlignment(Qt.AlignCenter)  # Center align text
+            otp6_box.setStyleSheet(
+                "background-color: white; border: 1px solid black; border-radius: 10px; font-size: 18px;")
+            self.layout.addWidget(otp6_box)
+            self.otp6_boxes.append(otp6_box)
+             # Connect textChanged signal to handle_otp_input slot
+            otp6_box.textChanged.connect(self.handle_otp_input6)
+
+
+        self.container_layout6.addLayout(self.layout)
+
+
+           # Create a QLabel for time remaining display (initially hidden)
+        # Create a QLabel for time remaining display (initially hidden)
+        self.timer_label6_widget = QWidget()
+        self.timer_label6 = QLabel("<html><p>Time remaining....180 seconds<p></html> ", self.timer_label6_widget)
+        self.timer_label6.setAlignment(Qt.AlignCenter)
+        self.timer_label6.setGeometry(50,340,360,40)
+        self.timer_label6.setStyleSheet("background-color: black; color: white; padding: 10px; border-radius: 100px; font-size: 10pt;")
+        self.timer_label6.hide()
+        self.timer_label6.setParent(forgot_pin_widget)
+
+        self.stacked_widget.addWidget(forgot_pin_widget) 
+
+    def handle_otp_input6(self, text):
+        current_box = self.sender()  # Get the sender QLineEdit
+        index = self.otp6_boxes.index(current_box)
+        if len(text) == 1 and index < len(self.otp6_boxes) - 1:
+            self.otp6_boxes[index + 1].setFocus()  # Move focus to the next box
+        elif len(text) == 1 and index == len(self.otp6_boxes) - 1:
+            self.check_otp6()
+
+    
+
+    def update_timer6(self):
+        self.time_left -= 1
+        self.timer_label6.setText(f"Time remaining: {self.time_left} seconds")
+        if self.time_left == 0:
+            self.timer.stop()
+            self.clear_otp_input6()
+            self.otp_generated6
+            self.otp_generated6 = False
+            QMessageBox.warning(self, "OTP Expired", "Your OTP has expired. Please request a new OTP.")
+         
+    
+    
+    def start_timer6(self):
+
+         # Check if timer is already running, stop it first
+        if hasattr(self, 'timer') and self.timer.isActive():
+            self.timer.stop()
+           # Initialize timer
+        self.time_left = 60 # 3 minutes (180 seconds)
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_timer6)
+        self.timer.start(1000)  # Update timer every second
+          
+                   
+
+    def forgot_pin_save_and_submit(self):
+
+        email = self.email_input_for_forgot_pin.text()
+        new_pin = self.forgot_pin_input.text()
+        confirm_pin = self.confirm_forgot_pin_input.text()
+        entered_otp = self.otp6
+
+
+
+        if email != self.current_user_email :
+            self.forgot_pin_notification_label.setText("Please Current Email do not match")
+            self.forgot_pin_notification_label.show()
+            return
+        
+        if len(new_pin) != 4:
+            QMessageBox.warning(self, "Invalid PIN", "Confirmation PIN must be exactly 4 digits.")
+            return
+        
+        if new_pin== "":
+            self.forgot_pin_notification_label.setText("Please Enter Your New Pin")
+            self.forgot_pin_notification_label.show()
+            return
+        
+        if confirm_pin == " ":
+            self.forgot_pin_notification_label.setText("Please Confirm Your Pin")
+            self.forgot_pin_notification_label.show()
+            return
+        
+        if new_pin != confirm_pin :
+            self.forgot_pin_notification_label.setText("Please  Pin do not match")
+            self.forgot_pin_notification_label.show()
+            return
+        
+        
+        if entered_otp =="":
+            self.generate_otp6()
+            self.email_input_for_forgot_pin.hide()
+            
+            self.forgot_pin_input.hide()
+            self.confirm_forgot_pin_input.hide()
+            
+            
+            self.forgot_pin_checkbox.hide()
+            self.show_confirm_forgot_pin_checkbox.hide()
+            
+            
+            
+            self.otp_generated6 = True
+            
+            self.info_label6.show()
+            self.container6.show()
+            self.timer_label6.show()
+            self.regenerate_otp_for_forgot_pin_button.show()
+            self.forgot_pin_notification_label.setText("")
+            self.start_timer6()
+        self.forgot_pin_notification_label.hide()
+
+    def update_database6(self):
+        email = self.email_input_for_forgot_pin.text()
+        new_pin = self.forgot_pin_input.text()
+        hash_password = self.sha512_64_hash(new_pin) 
+        message = " Your Pin has been changed"
+        try:
+            if self.db is None:
+                return
+            
+            #Create Cursor:
+            cursor = self.db.cursor()
+            
+            
+            # Execute SELECT query to check login credentials
+            sql = "UPDATE my_accountdb SET PIN = %s WHERE Email = %s"
+            cursor.execute(sql, ( hash_password, email))
+
+            self.db.commit()
+            sql = "INSERT INTO alertdb (message, created_at, Email) VALUES(%s, NOW(), %s)"
+            cursor.execute(sql, (message, self.current_user_email,))
+            self.db.commit()
+            
+            self.load_alert()
+
+            sql = "UPDATE susu_account SET Pin = %s WHERE Email = %s"
+            cursor.execute(sql, ( hash_password, email))
+
+            cursor.close()
+
+
+            QMessageBox.information(self, "Pin Changed", "You have successfully changed your Pin.")
+            self.email_input_for_forgot_pin.clear()
+            self.forgot_pin_input.clear()
+            self.confirm_forgot_pin_input.clear()
+        
+        except mysql.connector.Error as e:
+            QMessageBox.critical(self, "Database Error", f"Error updating logout time: {e}")
+      
+
+    def generate_otp6(self):
+        email = self.email_input_for_forgot_pin.text()
+        self.otp6 = str(random.randint(100000, 999999))
+        QMessageBox.information(self,"OTP", f"Sending OTP to {email}")
+        QMessageBox.information(self,"OTP", f"""Your Verification code: {self.otp6}
+For security reasons, do not share
+this code with anyone. Enter this code 
+to successfully change your Pin""")
+        
+
+        
+        self.start_timer6()
+
+   
+
+    def clear_otp_input6(self):
+        for otp_box in self.otp6_boxes:
+            otp_box.clear()  
+
+    def check_otp6(self):
+        entered_otp = "".join(box.text() for box in self.otp6_boxes)
+
+        if self.time_left <= 0:
+           QMessageBox.warning(self, "OTP Expired", "Your OTP has expired. Please request a new OTP.")
+           self.clear_otp_input6()
+           self.otp_generated6 = False
+           return
+           
+        if entered_otp == self.otp6:
+            QMessageBox.information(self, "Success", "OTP Matched Successfully")
+            self.clear_otp_input6()
+            
+            self.info_label6.hide()
+            self.container6.hide()
+            self.timer_label6.hide()
+            self.regenerate_otp_for_forgot_pin_button.hide()
+            self.email_input_for_forgot_pin.show()
+            self.forgot_pin_input.show()
+            self.forgot_pin_checkbox.show()
+            self.show_confirm_forgot_pin_checkbox.show()
+            self.confirm_forgot_pin_input.show()
+            
+            self.timer.stop() 
+
+            self.update_database6()
+          
+           
+
+
+        else:
+            QMessageBox.warning(self, "Error", "Invalid OTP, Please try again")
+            self.clear_otp_input6()
+            self.otp_generated6 = False  
+        
+
+
+
+    def validate_email_input_for_forgot_pin_style(self, text):
+        # Regular expression pattern for validating email addresses
+        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+
+        # Compile the pattern into a regular expression object
+        regex = re.compile(pattern)
+
+        # Use match method to check if the input text matches the pattern
+        if regex.match(text):
+            # Valid email format
+            self.email_input_for_forgot_pin.setStyleSheet("border-radius: 25px; border: 2px solid green;")
+        else:
+            # Invalid email format
+            self.email_input_for_forgot_pin.setStyleSheet("border-radius: 25px;  border: 5px solid red;")
+
+            # Set font size back to normal
+            font = self.email_input_for_forgot_pin.font()
+            font.setPointSize(10)  # Adjust the font size as needed
+            self.email_input_for_forgot_pin.setFont(font)
+
+
+
+
+    @pyqtSlot()
+    def reset_email_input_for_forgot_pin_style(self):
+        # Reset the stylesheet when the user leaves the input field
+        self.email_input_for_forgot_pin.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+    
+
+
+    def validate_forgot_pin(self,text):
+        forgot_pin_pattern = r'^[0-9]{4}$'  # Assuming a 10-digit phone number
+
+        forgot_pin_regex = re.compile(forgot_pin_pattern)
+
+        if forgot_pin_regex.match(text):
+            # Valid email format
+            self.forgot_pin_input.setStyleSheet("border-radius: 25px; border: 2px solid green;")
+        else:
+            # Invalid email format
+            self.forgot_pin_input.setStyleSheet("border-radius: 25px;  border: 5px solid red;")
+
+            # Set font size back to normal
+            font = self.forgot_pin_input.font()
+            font.setPointSize(10)  # Adjust the font size as needed
+            self.forgot_pin_input.setFont(font)  
+            
+    def validate_confirm_forgot_pin(self,text):
+            confirm_forgot_pin_pattern = r'^[0-9]{4}$'  # Assuming a 10-digit phone number
+
+            confirm_forgot_pin_regex = re.compile(confirm_forgot_pin_pattern)
+
+            if confirm_forgot_pin_regex.match(text):
+            # Valid email format
+                self.confirm_forgot_pin_input.setStyleSheet("border-radius: 25px; border: 2px solid green;")
+            else:
+            # Invalid email format
+                self.confirm_forgot_pin_input.setStyleSheet("border-radius: 25px;  border: 5px solid red;")
+
+            # Set font size back to normal
+                font = self.confirm_forgot_pin_input.font()
+                font.setPointSize(10)  # Adjust the font size as needed
+                self.confirm_forgot_pin_input.setFont(font)   
+
+
+
+    def toggle_forgot_pin_visibility(self, state):
+        if state == Qt.Checked:
+            # Show pin
+            self.forgot_pin_input.setEchoMode(QLineEdit.Normal)
+        else:
+            # Hide pin
+            self.forgot_pin_input.setEchoMode(QLineEdit.Password) 
+
+    def toggle_confirm_forgot_pin_visibility(self, state):
+        if state == Qt.Checked:
+            # Show pin
+            self.confirm_forgot_pin_input.setEchoMode(QLineEdit.Normal)
+        else:
+            # Hide pin
+            self.confirm_forgot_pin_input.setEchoMode(QLineEdit.Password)
+
+    
+            
+            
+
+    @pyqtSlot()
+    def reset_forgot_pin_input_style(self):
+        # Reset the stylesheet when the user leaves the input field
+        self.forgot_pin_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+       
+    @pyqtSlot()
+    def reset_confirm_forgot_pin_input_style(self):
+        # Reset the stylesheet when the user leaves the input field
+        self.confirm_forgot_pin_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+                  
+
    
 
     def check_my_balance(self):
@@ -1483,6 +2097,7 @@ class Main1Window(QMainWindow):
             pin = self.pin_input.text()
             PIN = self.sha512_64_hash(pin) 
             cursor = self.db.cursor()
+            
             
             cursor.execute("SELECT Balance FROM my_accountdb WHERE Email = %s AND PIN = %s", (email, PIN))
             result = cursor.fetchone()
@@ -1725,22 +2340,15 @@ class Main1Window(QMainWindow):
                 font = self.confirm_new_pin_input.font()
                 font.setPointSize(10)  # Adjust the font size as needed
                 self.confirm_new_pin_input.setFont(font)   
-      
 
-
-            
-
-
-
+    def toggle_susu_pin_visibility(self, state):
+        if state == Qt.Checked:
+            # Show pin
+            self.susu_pin_input.setEchoMode(QLineEdit.Normal)
+        else:
+            # Hide pin
+            self.susu_pin_input.setEchoMode(QLineEdit.Password) 
     
-            
-
-
-        
-     
-       
-
-        
     def toggle_pin_visibility(self, state):
         if state == Qt.Checked:
             # Show pin
@@ -1768,7 +2376,11 @@ class Main1Window(QMainWindow):
             
             
 
-        
+    @pyqtSlot()
+    def reset_susu_pin_input_style(self):
+        # Reset the stylesheet when the user leaves the input field
+        self.susu_pin_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+       
     @pyqtSlot()
     def reset_pin_input_style(self):
         # Reset the stylesheet when the user leaves the input field
@@ -1981,8 +2593,8 @@ class Main1Window(QMainWindow):
       
 
         if account_number == "":
-            self.saving_balance_notification_label.setText("Please Enter Account Number.")
-            self.saving_balance_notification_label.show()
+            QMessageBox.information(self, "Account","Please Enter Account Number.")
+            
             
             return
         
@@ -2060,16 +2672,16 @@ class Main1Window(QMainWindow):
         email = self.current_user_email
         number = self.phone_number
         self.otp4 = str(random.randint(100000, 999999))
-        print(f"Sending OTP to {email}")
-        print(f"""Your Verification code: {self.otp4}
+        QMessageBox.information(self, "OTP", f"Sending OTP to {email}")
+        QMessageBox.information(self,"OTP",f"""Your Verification code: {self.otp4}
 For security reasons, do not share
 this code with anyone. Enter this code 
-to successfully change your Email Address""") 
-        print(f"Sending OTP to {number}")
-        print(f"""Your Verification code: {self.otp4}
+to successfully check your balance""")
+        QMessageBox.information(self, "OTP", f"Sending OTP to {number}")
+        QMessageBox.information(self,"OTP",f"""Your Verification code: {self.otp4}
 For security reasons, do not share
 this code with anyone. Enter this code 
-to successfully change your Email Address""") # Print the generated OTP
+to successfully check your balance""") # Print the generated OTP
         self.start_timer4()
 
     def send_otp4(self,number):
@@ -2104,13 +2716,15 @@ to successfully change your Email Address""") # Print the generated OTP
         if entered_otp == self.otp4:
             QMessageBox.information(self, "Success", "OTP Matched Successfully")
             self.clear_otp_input4()
-            
+            self.update_database4()
             self.info_label4.hide()
             self.container4.hide()
             self.timer_label4.hide()
             self.sab_regenerate_otp_button.hide()
+            
+            self.accountnum_input.show()
             self.timer.stop() 
-            self.update_database4()
+            
             
           
            
@@ -2123,9 +2737,9 @@ to successfully change your Email Address""") # Print the generated OTP
 
         
     def mini_statement_page(self):
-        statement_widget = QWidget()
+        self.statement_widget = QWidget()
        
-        statement_label = QLabel("<html><p>Mini Statement-All Transactions<p></>", statement_widget)
+        statement_label = QLabel("<html><p>Mini Statement-All Transactions<p></>", self.statement_widget)
         statement_label.setGeometry(350,50,600,80)
         statement_label.setStyleSheet(
             "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
@@ -2135,36 +2749,36 @@ to successfully change your Email Address""") # Print the generated OTP
         account_label = QLabel("Select Account:", self)
         account_label.setGeometry(50, 150, 200, 30)
         account_label.setStyleSheet("font-size: 14pt; font-weight: bold;")
-        account_label.setParent(statement_widget)
+        account_label.setParent(self.statement_widget)
     
         self.account_dropdown = QComboBox(self)
         self.account_dropdown.setGeometry(250, 150, 350, 40)
         self.account_dropdown.setStyleSheet("border-radius: 10px; padding: 5px; font-size: 14px; font-weight: bold;")
-        self.account_dropdown.setParent(statement_widget)
+        self.account_dropdown.setParent(self.statement_widget)
     
         from_date_label = QLabel("From Date:", self)
         from_date_label.setGeometry(50, 200, 200, 30)
         from_date_label.setStyleSheet("font-size: 14pt; font-weight: bold;")
-        from_date_label.setParent(statement_widget)
+        from_date_label.setParent(self.statement_widget)
     
         self.from_date_picker = QDateEdit(self)
         self.from_date_picker.setGeometry(250, 200, 200, 30)
         self.from_date_picker.setCalendarPopup(True)
         self.from_date_picker.setDate(QDate.currentDate().addMonths(-1))
         self.from_date_picker.setStyleSheet("font-size: 14pt; font-weight: bold; border-radius: 10px; padding: 5px;")
-        self.from_date_picker.setParent(statement_widget)
+        self.from_date_picker.setParent(self.statement_widget)
     
         to_date_label = QLabel("To Date:", self)
         to_date_label.setGeometry(50, 250, 200, 30)
         to_date_label.setStyleSheet("font-size: 14pt; font-weight: bold;")
-        to_date_label.setParent(statement_widget)
+        to_date_label.setParent(self.statement_widget)
     
         self.to_date_picker = QDateEdit(self)
         self.to_date_picker.setGeometry(250, 250, 200, 30)
         self.to_date_picker.setCalendarPopup(True)
         self.to_date_picker.setDate(QDate.currentDate())
         self.to_date_picker.setStyleSheet("font-size: 14pt; font-weight: bold; border-radius: 10px; padding: 5px;")
-        self.to_date_picker.setParent(statement_widget)
+        self.to_date_picker.setParent(self.statement_widget)
     
         self.statement_button = QPushButton("Generate Statement", self)
         statement_button_width = 300
@@ -2181,13 +2795,29 @@ to successfully change your Email Address""") # Print the generated OTP
                                                                }
                                          """)
         self.statement_button.clicked.connect(self.generate_statement)
-        self.statement_button.setParent(statement_widget)
+        self.statement_button.setParent(self.statement_widget)
+
+        self.mini_widget = QWidget()
+        self.mini_widget.setGeometry(50, 300, 1000, 400)
+        self.mini_widget.setStyleSheet("background-color: black; border-radius: 20px; padding: 10px;")
+        self.mini_widget.setParent(self.statement_widget)
+
+
+        self.widget_layout =QVBoxLayout(self.mini_widget)
+
+        mini_title = QLabel("Mini Statement")
+        mini_title.setFont(QFont("Arial", 16, QFont.Bold))
+        mini_title.setStyleSheet("background-color: #333333; color: white; padding: 10px; border-radius: 10px; font-size: 16pt;")
+        self.widget_layout.addWidget(mini_title)
+
     
         self.statement_text_area = QTextEdit(self)
-        self.statement_text_area.setGeometry(50, 370, 1200, 300)
+        self.statement_text_area.setTextColor(QColor("white"))
         self.statement_text_area.setStyleSheet("border-radius: 10px; padding: 10px; font-size: 14px;")
         self.statement_text_area.setReadOnly(True)
-        self.statement_text_area.setParent(statement_widget)
+        
+        self.widget_layout.addWidget(self.statement_text_area)
+        
     
         self.download_button = QPushButton("Download Statement", self)
         download_button_width = 300
@@ -2204,15 +2834,15 @@ to successfully change your Email Address""") # Print the generated OTP
                                                                }
                                          """)
         self.download_button.clicked.connect(self.download_statement)
-        self.download_button.setParent(statement_widget)
+        self.download_button.setParent(self.statement_widget)
 
-        self.stacked_widget.addWidget(statement_widget)
+        self.stacked_widget.addWidget(self.statement_widget)
         self.load_user_accounts()
 
     
        
 
-        self.stacked_widget.addWidget(statement_widget) 
+        self.stacked_widget.addWidget(self.statement_widget) 
     def load_user_accounts(self):
         try:
             cursor = self.db.cursor()
@@ -2252,48 +2882,65 @@ to successfully change your Email Address""") # Print the generated OTP
         to_date_time = f"{to_date} 23:59:59"
 
 
-        print(f"Account ID: {account_id}")
-        print(f"From Date: {from_date}")
-        print(f"To Date: {to_date}")
 
-        try:
-            cursor = self.db.cursor()
         
-            query = """
+        cursor = self.db.cursor()
+        
+        query = """
                 SELECT Date, From_Account, To_Account, Debit, Credit, Transaction_ID, Type_
                 FROM transactionsdb
                 WHERE (From_Account_ID = %s OR To_Account_ID = %s) AND Date BETWEEN %s AND %s
                 ORDER BY Date DESC
                      """
             
-            print(f"Executing query: {query}")
-            print(f"With parameters: ({account_id}, {account_id}, {from_date_time}, {to_date_time})")
-
+           
+        try:
+            cursor = self.db.cursor()
             cursor.execute(query, (account_id, account_id, from_date_time, to_date_time))
             transactions = cursor.fetchall()
 
-            print(f"Fetched Transactions: {transactions}")
+            if not transactions:
+                self.statement_text_area.setHtml("<p style='color: white; font-size: 20px;'>No transactions found for the given account numnber period.</p>")
+                return
 
-            statement = "<table border='1'>"
-            statement += "<tr><th>Date</th><th>From(Account)</th><th>To(Account)</th><th>Debit</th><th>Credit</th><th>Transaction ID</th><th>Type</th></tr>"
+            # Generating the HTML for display
+            statement_html = "<html><head><style>"
+            statement_html += """
+                body { color: white; background-color: black; }
+                table { width: 100%; border-collapse: collapse; }
+                th, td { padding: 8px; text-align: left; border: 1px solid #ddd; }
+                th { background-color: #333; color: white; }
+                tr:nth-child(even) { background-color: #444; }
+                tr:nth-child(odd) { background-color: #555; }
+                tr:hover { background-color: #666; }
+            """
+            statement_html += "</style></head><body>"
+          #  statement_html += "<h2>Mini Statement</h2>"
+            statement_html += "<table>"
+            statement_html += "<tr><th>Date</th><th>From (Account)</th><th>To (Account)</th><th>Debit</th><th>Credit</th><th>Transaction ID</th><th>Type</th></tr>"
 
             for transaction in transactions:
                 date, from_account, to_account, debit, credit, transaction_id, type_ = transaction
-                statement += f"<tr><td>{date}</td><td>{from_account}</td><td>{to_account}</td><td>{debit:.2f}</td><td>{credit:.2f}</td><td>{transaction_id}</td><td>{type_}</td></tr>"
+                statement_html += (
+                    f"<tr><td>{date}</td><td>{from_account}</td><td>{to_account}</td>"
+                    f"<td>{debit:.2f}</td><td>{credit:.2f}</td><td>{transaction_id}</td><td>{type_}</td></tr>"
+                )
+                
+            statement_html += "</table></body></html>"
+            self.statement_text_area.setHtml(statement_html)
 
-                
-                self.statement_text_area.setHtml(statement)
-                
-          
+            # Option to download the mini-statement
+            
+        
         except mysql.connector.Error as e:
-            self.statement_text_area.setHtml(f"Error generating statement: {e}")
-
+            self.statement_text_area.setHtml(f"<p>Error generating statement: {e}</p>")
+        
         finally:
-            cursor.close()        
+            cursor.close()
 
      
     def download_statement(self):
-        statement = self.statement_text_area.toPlainText()
+        statement = self.statement_text_area.toHtml()
         if not statement:
             QMessageBox.warning(self, "Download Error", "No statement to download. Please generate a statement first.")
             return
@@ -2309,13 +2956,20 @@ to successfully change your Email Address""") # Print the generated OTP
                 with open(file_path, 'w', newline='') as file:
                     writer = csv.writer(file)
                     writer.writerow(["Date", "From Account", "To Account", "Debit", "Credit", "Transaction ID", "Type"])
-                    lines = statement.split('\n')[2:]
-                    for line in lines:
-                        if line.strip():
-                            writer.writerow(line.split('\t'))
-                            QMessageBox.information(self, "Download Complete", f"Statement successfully downloaded to {file_path}")
+                   
+                    import bs4
+                    soup = bs4.BeautifulSoup(statement, 'html.parser')
+                    table = soup.find('table')
+                    if table:
+                        rows = table.find_all('tr')
+                        for row in rows[1:]:  # Skip the header row
+                            cells = row.find_all('td')
+                            row_data = [cell.get_text(strip=True) for cell in cells]
+                            writer.writerow(row_data)
+
+                QMessageBox.information(self, "Download Complete", f"Statement successfully downloaded to {file_path}")
             except Exception as e:
-                QMessageBox.critical(self, "Download Error", f"Error downloading statement: {e}")        
+                QMessageBox.critical(self, "Download Error", f"Error downloading statement: {e}")
 
 
 
@@ -2324,7 +2978,7 @@ to successfully change your Email Address""") # Print the generated OTP
 
     def susu_page(self):
         susu_widget =QWidget()
-        susu_label = QLabel("<html><p> Investment <p></html>", susu_widget)
+        susu_label = QLabel("<html><p> Susu <p></html>", susu_widget)
         susu_label.setGeometry(350, 50, 600 , 80)
         susu_label.setStyleSheet("background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")    
         susu_label.setAlignment(Qt.AlignCenter)
@@ -2332,7 +2986,7 @@ to successfully change your Email Address""") # Print the generated OTP
 
 
         self.susu_table_widget = QWidget()
-        self.susu_table_widget.setGeometry(400, 200, 800, 400)
+        self.susu_table_widget.setGeometry(400, 200, 850, 400)
         self.susu_table_widget.setStyleSheet("background-color: black; border-radius: 20px; padding: 10px;")
         self.susu_table_widget.setParent(susu_widget)
 
@@ -2354,14 +3008,15 @@ to successfully change your Email Address""") # Print the generated OTP
         self.susu_table.setColumnWidth(1, 190)  
         self.susu_table.setColumnWidth(2, 120)  
         self.susu_table.setColumnWidth(3, 150)  
-        self.susu_table.setColumnWidth(4, 120) 
+        self.susu_table.setColumnWidth(4, 120)
+        self.susu_table.setColumnWidth(5,120) 
         
         self.susu_table.horizontalHeader().setStyleSheet("QHeaderView::section { background-color: #333333; color: white; padding: 10px; }")
         self.susu_table.horizontalHeader().setFixedHeight(60)
         self.susu_table.horizontalHeader().setFont(QFont("Arial", 10))
         self.susu_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         
-        self.susu_table.setHorizontalHeaderLabels(["Group Name", "Contribution Amount", "Interval", "Members", "Status"])
+        self.susu_table.setHorizontalHeaderLabels(["Group Name", "Contribution Amount", "Interval", "Members", "Total Amount" ,"Status"])
         self.susu_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         
         self.susu_table.setAlternatingRowColors(True)
@@ -2371,10 +3026,10 @@ to successfully change your Email Address""") # Print the generated OTP
         self.widget_layout.addWidget(self.susu_table)
 
            # Execute SELECT query to check login credentials
-        #cursor = self.db.cursor()
-        #query = "SELECT member_id FROM susu_members WHERE Email = %s"
-        #cursor.execute(query,(self.current_user_email,))
-        #result = cursor.fetchone()
+       # cursor = self.db.cursor()
+       # query = "SELECT member_id FROM susu_members WHERE Email = %s"
+       # cursor.execute(query,(self.current_user_email,))
+       # result = cursor.fetchone()
 
         #if result:
         self.load_susu_groups()
@@ -2415,7 +3070,7 @@ to successfully change your Email Address""") # Print the generated OTP
                                                 """)
 
 # Set the icon to the left of the button text
-        icon = QIcon("investment.png")
+        icon = QIcon("view.png")
         view_details_button.setIcon(icon)
 
 # Set the text for the button
@@ -2455,7 +3110,7 @@ to successfully change your Email Address""") # Print the generated OTP
                                                 """)
 
 # Set the icon to the left of the button text
-        icon = QIcon("investment.png")
+        icon = QIcon("group.png")
         create_susu_account_button.setIcon(icon)
 
 # Set the text for the button
@@ -2495,7 +3150,7 @@ to successfully change your Email Address""") # Print the generated OTP
                                                 """)
 
 # Set the icon to the left of the button text
-        icon = QIcon("investment.png")
+        icon = QIcon("add-group.png")
         join_susu_account_button.setIcon(icon)
 
 # Set the text for the button
@@ -2563,38 +3218,43 @@ to successfully change your Email Address""") # Print the generated OTP
         mysession_id = random.randint(1000000000, 9999999999)
         
         
+        
 
         if  group_id  == "":
             QMessageBox.warning(self, "Input Error", "Please fill in all the fields.")
             return
         if session_id == "":
             QMessageBox.warning(self, "Input Error", "Please fill in all the fields.")
-
+            return
         
         try:
             cursor = self.db.cursor()
-
+            
         # Check if the group ID exists
-            check_group_query = "SELECT group_name FROM susu_groups WHERE group_id = %s"
+            check_group_query = "SELECT Group_name FROM susu_groups WHERE group_id = %s"
             cursor.execute(check_group_query, (group_id,))
             group = cursor.fetchone()
 
             if not group:
              # If group ID does not exist, show a warning message
                QMessageBox.warning(self, "Group Not Found", "The specified group ID does not exist.")
+               self.group_id_input.clear()
+               self.session_id_input.clear()
                cursor.close()
                return
               # If group ID exists, get the group name
             group_name = group[0]
 
              # Fetch the session ID from the susu_members table
-            fetch_session_query = "SELECT session_id FROM susu_members WHERE group_id = %s"
-            cursor.execute(fetch_session_query, (group_id,))
+            fetch_session_query = "SELECT session_id FROM susu_members WHERE session_id = %s"
+            cursor.execute(fetch_session_query, (session_id,))
             session = cursor.fetchone()
 
             if not session:
             # If session ID does not exist for the group, show a warning message
                 QMessageBox.warning(self, "Session Not Found", "No session ID found for the specified group.")
+                self.group_id_input.clear()
+                self.session_id_input.clear()
                 cursor.close()
                 return
             session_id = session[0]
@@ -2609,17 +3269,47 @@ to successfully change your Email Address""") # Print the generated OTP
             
             if confirmation_msg == QMessageBox.No:
             # If user declines, halt the process
-                cursor.close()
-                return    
+                
+                self.group_id_input.clear()
+                self.session_id_input.clear()
+                return 
+              
+            required_member_count_query = "SELECT Number_of_Members FROM susu_groups WHERE group_id = %s"
+            cursor.execute(required_member_count_query, (group_id,))
+            result = cursor.fetchone() 
+            required_member_count = result[0]
+
+            current_member_count_query = "SELECT COUNT(*) FROM susu_members WHERE group_id = %s"
+            cursor.execute(current_member_count_query, (group_id,))
+            current_member_count = cursor.fetchone()[0]
+
+
+            if current_member_count == required_member_count:
+                
+                self.group_id_input.clear()
+                self.session_id_input.clear()
+                QMessageBox.information(self, "Error", "Sorry , Susu Group is Full")
+                
+                return
 
              # Proceed with the join process if user confirms
             join_group_query = """
-            INSERT INTO susu_members (Email, member_fname, member_lname, group_id, member_id, session_id)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """
+            INSERT INTO susu_members (Email, member_fname, member_lname, group_id, member_id, session_id, joined_at)
+            VALUES (%s, %s, %s, %s, %s, %s, NOW())
+            """
             values = (self.current_user_email, self.first_name, self.last_name, group_id, self.phone_number,mysession_id)
             cursor.execute(join_group_query, values)
             self.db.commit()
+
+            message = f"You have successfully joined {group_name} savings group"
+
+            sql = "INSERT INTO alertdb (message, created_at, Email) VALUES(%s, NOW(), %s)"
+            cursor.execute(sql, (message, self.current_user_email,))
+            self.db.commit()
+            
+            self.load_alert()
+
+
 
             contributions_query = """
             INSERT INTO contributions (session_id, member_id, Group_id, amount)
@@ -2628,13 +3318,41 @@ to successfully change your Email Address""") # Print the generated OTP
             values = (mysession_id, self.phone_number, group_id, 0.00)
             cursor.execute(contributions_query, values,)
             self.db.commit()
-            cursor.close()
+
+            
             QMessageBox.information(self, "Success", "Successfully joined Susu group.")
             QMessageBox.information(self, "Success", "Your Member_id is your Mobile Number.")
             
             
-            self.load_user_accounts()
+            
+
+            cursor.execute("SELECT Pin FROM susu_account WHERE Email = %s", (self.current_user_email,))
+            result = cursor.fetchone()
+            if result and result[0]:  # PIN is not empty
+                    return
+            else:
+            
+            
+                Pin = self.get_pin()
+                Balance = 0.00
+                query2= """
+                    INSERT INTO susu_account (Email, FirstName, LastName, Member_ID, Pin, Balance)
+                    VALUES (%s, %s, %s, %s, %s,%s)
+                    """
+                values2 = (self.current_user_email, self.first_name, self.last_name, self.phone_number, Pin, Balance )
+                cursor.execute(query2, values2)
+                self.db.commit()
+
+                message1 = "Your Susu Account has been created as you Joined the susu Group"
+                sql = "INSERT INTO alertdb (message, created_at, Email) VALUES(%s, NOW(), %s)"
+                cursor.execute(sql, (message1, self.current_user_email,))
+                self.db.commit()
+            
+                self.load_alert()
+            
+            self.load_susu_accounts()
             self.check_and_activate_group(group_id)
+
         except mysql.connector.Error as e:
             QMessageBox.critical(self, "Database Error", f"Failed to join Susu group. Error: {e}")
 
@@ -2655,13 +3373,13 @@ to successfully change your Email Address""") # Print the generated OTP
                 return
 
             required_member_count = result[0]
-            print(required_member_count)
+            
 
         # Fetch the current number of members in the group
             current_member_count_query = "SELECT COUNT(*) FROM susu_members WHERE group_id = %s"
             cursor.execute(current_member_count_query, (group_id,))
             current_member_count = cursor.fetchone()[0]
-            print(current_member_count)
+            
 
         # Activate the group if the required number of members is met
             if current_member_count == required_member_count:
@@ -2669,13 +3387,44 @@ to successfully change your Email Address""") # Print the generated OTP
                 start_date = datetime.now().strftime('%Y-%m-%d')
                 cursor.execute(activate_group_query, (start_date, group_id,))
                 self.db.commit()
-                QMessageBox.information(self, "Group Activated", "The Susu group has been activated.")
-                self.load_user_accounts()
-            cursor.close()
+                self.load_susu_accounts()
+                self.load_susu_groups()
+                self.send_group_activation_message(group_id)
+                self.group_id_input.clear()
+                self.session_id_input.clear()
+            
         except mysql.connector.Error as e:
                 QMessageBox.critical(self, "Database Error", f"Failed to check and activate Susu group. Error: {e}")
 
 
+    def send_group_activation_message(self, group_id):
+
+        try:
+            cursor = self.db.cursor()
+            message = "Congratulations! Your Susu group has been activated."
+
+        # Fetch all members' emails in the group
+            fetch_members_query = "SELECT Email FROM susu_members WHERE group_id = %s"
+            cursor.execute(fetch_members_query, (group_id,))
+            members = cursor.fetchall()
+
+            if not members:
+                cursor.close()
+                return
+
+        # Send message to each member
+            for member in members:
+                email = member[0]
+                sql = "INSERT INTO alertdb (message, created_at, Email) VALUES(%s, NOW(), %s)"
+                cursor.execute(sql, (message, email,))
+                self.db.commit()
+                
+                self.load_alert
+                
+
+            
+        except mysql.connector.Error as e:
+            QMessageBox.critical(self, "Database Error", f"Failed to send activation messages. Error: {e}")
 
 
     def susu_details_page(self):
@@ -2749,6 +3498,7 @@ to successfully change your Email Address""") # Print the generated OTP
         self.group_info_table.setColumnWidth(7, 200)  # Number of Members
         self.group_info_table.setColumnWidth(8, 100)  # Status
         self.group_info_table.setColumnWidth(9, 100)  # Start Date
+        
         self.group_info_table.setRowHeight(0, 30)  # Adjust row height for header
        #Set Header Style 
         self.group_info_table.horizontalHeader().setStyleSheet("QHeaderView::section { background-color: #333333; color: white; padding: 12px; }")
@@ -2779,7 +3529,7 @@ to successfully change your Email Address""") # Print the generated OTP
 
         self.widget_layout = QVBoxLayout(self.member_contributions_table_widget)
 
-        title = QLabel("Group Details")
+        title = QLabel("Member Details")
         title.setFont(QFont("Arial", 16, QFont.Bold))
         title.setStyleSheet("background-color: #333333; color: white; padding: 10px; border-radius: 10px; font-size: 16pt;")
         self.widget_layout.addWidget(title)
@@ -2882,7 +3632,7 @@ to successfully change your Email Address""") # Print the generated OTP
     def create_account_page(self):
         create_susu_account_widget = QWidget()
        
-        create_susu_account_label = QLabel("<html><p>Check Investment Request<p></>", create_susu_account_widget)
+        create_susu_account_label = QLabel("<html><p>Susu Group Account(s)<p></>", create_susu_account_widget)
         create_susu_account_label.setGeometry(350,50,600,80)
         create_susu_account_label.setStyleSheet(
             "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
@@ -2933,7 +3683,7 @@ to successfully change your Email Address""") # Print the generated OTP
 
 
 
-        create_button = QPushButton("Create Account", self)
+        create_button = QPushButton("Create Group Account", self)
         create_button_width = 300
         create_button_x = (self.width() - create_button_width) // 3
         create_button.setGeometry(create_button_x, 510, create_button_width, 70)
@@ -2975,31 +3725,71 @@ to successfully change your Email Address""") # Print the generated OTP
         members_count = self.members_count_input.text()
         group_id = random.randint(1000000000, 9999999999)
         session_id = random.randint(1000000000, 9999999999)
+        message1 = f"Congratullations, You have successfully created {group_name} susu group" 
+        message = f"You Have been Joined to the {group_name} saving group"
 
+        total_funds = int(contribution_amount) * int(members_count)
 
 
         if not group_name or not contribution_amount or not members_count :
             QMessageBox.warning(self, "Input Error", "Please fill in all the fields.")
             return
+        try :
+            contribution_amount = Decimal(contribution_amount)
+        except ValueError:
+            QMessageBox.warning(self, "Input Error", "Please Enter A Valid Amount.")
+            return
+
+        if contribution_amount <= 0 :
+            QMessageBox.warning(self, "Input Error", "Please Enter A Valid Amount.")
+            return
+        try :
+            members_count = int(members_count)
+        except ValueError:
+            QMessageBox.warning(self, "Input Error", "Please Enter A Valid Amount.")
+            return
+        if members_count <= 1:
+            QMessageBox.warning(self, "Input Error", "Please Members should be More than One.")
+            return
+
+
 
         try:
             cursor = self.db.cursor()
             query = """
-                INSERT INTO susu_groups (Email, Firstname, Lastname, member_id, Group_name, Group_ID, Contribution_Amount, Contribution_Interval, Number_of_Members)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO susu_groups (Email, Firstname, Lastname, member_id, Group_name, Group_ID, Contribution_Amount, Contribution_Interval, Number_of_Members, Total_amount)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
-            values = (self.current_user_email, self.first_name, self.last_name, self.phone_number,group_name, group_id, contribution_amount, contribution_interval, members_count)
+            values = (self.current_user_email, self.first_name, self.last_name, self.phone_number,group_name, group_id, contribution_amount, contribution_interval, members_count,total_funds)
             cursor.execute(query, values)
-
             self.db.commit()
+
+            sql = "INSERT INTO alertdb (message, created_at, Email) VALUES(%s, NOW(), %s)"
+            cursor.execute(sql, (message1, self.current_user_email,))
+            self.db.commit()
+            self.load_alert()
+
+            sql = "INSERT INTO group_funds (group_id, group_name, total_funds) VALUES(%s, %s, %s)"
+            cursor.execute(sql, (group_id , group_name, 0.00,))
+            self.db.commit()
+            
+
             query1 = """
-                    INSERT INTO susu_members (Email, member_fname, member_lname, group_id, member_id, session_id)
-                    VALUES (%s, %s, %s, %s, %s,%s)
+                    INSERT INTO susu_members (Email, member_fname, member_lname, group_id, member_id, session_id, joined_at)
+                    VALUES (%s, %s, %s, %s, %s,%s, NOW())
                 """
             values1 = (self.current_user_email, self.first_name, self.last_name, group_id, self.phone_number,session_id)
             cursor.execute(query1, values1)
-
             self.db.commit()
+
+           
+
+            sql = "INSERT INTO alertdb (message, created_at, Email) VALUES(%s, NOW(), %s)"
+            cursor.execute(sql, (message, self.current_user_email,))
+            self.db.commit()
+            
+            self.load_alert()
+
             contributions_query = """
             INSERT INTO contributions (session_id, member_id, amount, Group_id)
             VALUES (%s, %s, %s, %s)
@@ -3007,15 +3797,16 @@ to successfully change your Email Address""") # Print the generated OTP
             values = (session_id, self.phone_number, 0.00,  group_id,)
             cursor.execute(contributions_query, values)
             self.db.commit()
-            cursor.close()
+            
 
             self.load_susu_groups()
+            self.load_susu_accounts()
             
-            cursor.close()
+            
             QMessageBox.information(self, "Success", "Susu group created successfully.")
             QMessageBox.information(self, "Success", f"Susu Group ID : {group_id}")
             QMessageBox.information(self, "Success", f"Susu Session ID :{session_id}")
-            self.load_susu_accounts()
+            
 
             self.group_name_input.clear()
             self.contribution_amount_input.clear()
@@ -3023,10 +3814,36 @@ to successfully change your Email Address""") # Print the generated OTP
             self.members_count_input.clear()
 
 
-      
+            cursor.execute("SELECT Pin FROM susu_account WHERE Email = %s", (self.current_user_email,))
+            result = cursor.fetchone()
             
+
+            if result and result[0]:  # PIN is not empty
+                return
+            else:
+        
+
+                Pin = self.get_pin()
+                Balance = 0.00
+                query2= """
+                    INSERT INTO susu_account (Email, FirstName, LastName, Member_ID, Pin, Balance)
+                    VALUES (%s, %s, %s, %s, %s,%s)
+                    """
+                values2 = (self.current_user_email, self.first_name, self.last_name, self.phone_number, Pin, Balance )
+                cursor.execute(query2, values2)
+                self.db.commit()
+            
+                message2 = "Your susu Account has been created as you join the Susu Group "
+                sql = "INSERT INTO alertdb (message, created_at, Email) VALUES(%s, NOW(), %s)"
+                cursor.execute(sql, (message1, self.current_user_email,))
+                self.db.commit()
+                self.load_alert()
+            
+            cursor.close()
+ 
         except mysql.connector.Error as e:
             QMessageBox.critical(self, "Database Error", f"Failed to create Susu group. Error: {e}")
+
 
     def fetch_group_id_by_email(self):
         email = self.current_user_email
@@ -3041,9 +3858,7 @@ to successfully change your Email Address""") # Print the generated OTP
     def load_susu_groups(self):
         try:
             group_ids = self.fetch_group_id_by_email()
-            if not group_ids:
-                QMessageBox.information(self, "No Groups", "No Susu groups found for the current user.")
-                return
+            
 
             cursor = self.db.cursor()
 
@@ -3054,9 +3869,11 @@ to successfully change your Email Address""") # Print the generated OTP
                 query = """
                     SELECT
                         sg.Group_name,
+
                         sg.Contribution_Amount,
                         sg.Contribution_Interval,
                         sg.Number_of_Members,
+                        sg.Total_amount,
                         sg.status
                     FROM susu_groups sg
                     INNER JOIN susu_members sm ON sg.Group_ID = sm.Group_ID
@@ -3078,7 +3895,12 @@ to successfully change your Email Address""") # Print the generated OTP
         finally:
             if cursor:
                 cursor.close()
+      
 
+
+        
+      
+        
         
     def savings_page(self):
         savings_widget =QWidget()
@@ -3696,16 +4518,491 @@ to successfully change your Email Address""") # Print the generated OTP
         wallet_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(15))
         wallet_button.setParent(transfer_widget)
 
+        
+         #To Susu
+        
+        susu_group_button = QPushButton(self)
+        susu_group_button.setGeometry(50, 430, 500, 50)
+                       
+        # Set the icon size explicitly
+        icon_size = QSize(30, 30)  # Adjust the size as needed
+        susu_group_button.setIconSize(icon_size)
 
+         # Set the icon position to the left side of the button
+        susu_group_button.setStyleSheet("""
+                        QPushButton {
+                                     background-color: white;
+                                     font-size: 12pt; 
+                                     border-radius: 35px;
+                                     text-align: left;  /* Align text to the left */
+                                     padding-left: 40px;  /* Space for the icon */
+                                               
+                                     }          
+                        
+                        QPushButton::icon {
+                                     padding-right: 15px;  /* Space between icon and text */
+                                    }
+                        QPushButton:hover{
+                                     background-color:#333333
+                                    } 
+                                    
+                                                """)
 
+# Set the icon to the left of the button text
+        icon = QIcon("money.png")
+        susu_group_button.setIcon(icon)
 
+# Set the text for the button
+        susu_group_button.setText(" | Susu Group")
 
-
-
+        susu_group_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(36))
+        susu_group_button.setParent(transfer_widget)
 
         self.stacked_widget.addWidget(transfer_widget)
 
-   
+    def transfer_to_susu_group(self):
+        transfer_to_susu_group_widget =QWidget()
+        transfer_to_susu_group_label = QLabel("<html><p> Funds to Transfer-To Susu Group Account(s) <p></html>", transfer_to_susu_group_widget)
+        transfer_to_susu_group_label.setGeometry(350, 50, 600 , 80)
+        transfer_to_susu_group_label.setStyleSheet("background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")    
+        transfer_to_susu_group_label.setAlignment(Qt.AlignCenter)
+
+        self.group_acc_input = QLineEdit(self)
+        self.group_acc_input.setGeometry(50, 200, 350, 50)
+        self.group_acc_input.setPlaceholderText("Enter Group ID")
+        self.group_acc_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+        self.group_acc_input.setClearButtonEnabled(True)
+        self.group_acc_input.setParent(transfer_to_susu_group_widget)
+
+        self.transfer_amount8_input = QLineEdit(self)
+        self.transfer_amount8_input.setGeometry(50, 280, 350, 50)
+        self.transfer_amount8_input.setPlaceholderText("Amount to Transfer")
+        self.transfer_amount8_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
+        self.transfer_amount8_input.setClearButtonEnabled(True)
+        self.transfer_amount8_input.setParent(transfer_to_susu_group_widget)
+
+        self.transfer8_button = QPushButton("Transfer", self)
+        transfer8_button_width = 300
+        transfer8_button_x = (self.width() - transfer8_button_width) // 3
+        self.transfer8_button.setGeometry(transfer8_button_x, 450, transfer8_button_width, 70)
+        self.transfer8_button.setStyleSheet("""
+                                      QPushButton {
+                                           background-color: blue;
+                                           font-size: 18pt;
+                                           border-radius: 35px;
+                                                  }
+                                           QPushButton:hover {
+                                           background-color: #333333;
+                                                             }
+                                           """)
+        self.transfer8_button.clicked.connect(self.perform_susu_account_to_susu_group_transfer)
+        self.transfer8_button.setParent(transfer_to_susu_group_widget)
+
+
+        self.transfer8_notify_label = QLabel("", self)
+        self.transfer8_notify_label.setGeometry(50, 380, 600, 50)
+        self.transfer8_notify_label.setStyleSheet("color: red; font-size: 25px;")
+        self.transfer8_notify_label.setParent(transfer_to_susu_group_widget)
+
+        self.transfer8_regenerate_otp_button = QPushButton(self)
+        self.transfer8_regenerate_otp_button.setIcon(QIcon("refresh-page-option.png"))  # Set the icon for the button
+        self.transfer8_regenerate_otp_button.setToolTip("Regenerate OTP")  # Optional tooltip for the button
+        # Adjust the position and size of the button as needed
+        self.transfer8_regenerate_otp_button.setGeometry(410, 335, 40, 40)
+        self.transfer8_regenerate_otp_button.setStyleSheet("""
+                     QPushButton {
+                     background-color: blue;
+                      font-size: 18pt; 
+                      border-radius: 35px;
+                      }
+                       QPushButton:hover{
+                          background-color:#333333
+                      }
+                  """)
+        self.transfer8_regenerate_otp_button.hide()
+        self.transfer8_regenerate_otp_button.clicked.connect(self.generate_otp8)  # Connect the clicked signal
+        self.transfer8_regenerate_otp_button.setParent(transfer_to_susu_group_widget)
+        
+        self.otp_generated8 = False
+        self.otp8= ""
+
+        #Create a QLabel for the information display 
+        self.info_label8_widget = QWidget()
+        self.info_label8 = QLabel("<html><p>Enter the OTP....You have 1 minutes<p></html> ", self.info_label8_widget)
+        self.info_label8.setAlignment(Qt.AlignCenter)
+        self.info_label8.setGeometry(50,200,400,40)
+        self.info_label8.setStyleSheet("background-color: black; color: white; padding: 10px; border-radius: 100px; font-size: 10pt;")
+        self.info_label8.hide() # Hide the info label initially
+        self.info_label8.setParent(transfer_to_susu_group_widget)
+
+        #create a container widget for the otp input
+        self.container8 = QWidget()
+        self.container8.setGeometry(50,235,400,100)
+        self.container8.setStyleSheet("background-color: blue; border-radius: 5px; padding: 5px;")
+        self.container8.hide()
+        self.container8.setParent(transfer_to_susu_group_widget)
+
+        # Create a QVBoxLayout for the container
+        self.container_layout8 = QVBoxLayout(self.container8)
+        self.container_layout8.setContentsMargins(0, 0, 0, 0)  # No margins
+       # self.container_layout.setParent(email_widget)
+
+
+       
+
+        #Create a QHBoxlayout for the OTP boxes 
+        self.layout = QHBoxLayout()
+        self.layout.setContentsMargins(10,10,10,10) #set Margins
+      #  self.layout.setParent(email_widget)
+
+        #Create Six QLineEDIT Boxes for the otp
+        self.otp8_boxes = []
+        for _ in range(6):
+            otp8_box = QLineEdit(self.container8)
+            otp8_box.setFixedSize(50, 50)  # Set fixed size for each box
+            otp8_box.setMaxLength(1)  # Limit input to one character
+            otp8_box.setAlignment(Qt.AlignCenter)  # Center align text
+            otp8_box.setStyleSheet(
+                "background-color: white; border: 1px solid black; border-radius: 10px; font-size: 18px;")
+            self.layout.addWidget(otp8_box)
+            self.otp8_boxes.append(otp8_box)
+             # Connect textChanged signal to handle_otp_input slot
+            otp8_box.textChanged.connect(self.handle_otp_input8)
+
+
+        self.container_layout8.addLayout(self.layout)
+
+
+           # Create a QLabel for time remaining display (initially hidden)
+        self.timer_label8_widget = QWidget()
+        self.timer_label8 = QLabel("<html><p>Time remaining....60 seconds<p></html> ", self.timer_label8_widget)
+        self.timer_label8.setAlignment(Qt.AlignCenter)
+        self.timer_label8.setGeometry(50,335,360,40)
+        self.timer_label8.setStyleSheet("background-color: black; color: white; padding: 10px; border-radius: 100px; font-size: 10pt;")
+        self.timer_label8.hide()
+        self.timer_label8.setParent(transfer_to_susu_group_widget)
+
+
+        self.stacked_widget.addWidget(transfer_to_susu_group_widget)
+
+    def handle_otp_input8(self, text):
+        current_box = self.sender()  # Get the sender QLineEdit
+        index = self.otp8_boxes.index(current_box)
+        if len(text) == 1 and index < len(self.otp8_boxes) - 1:
+            self.otp8_boxes[index + 1].setFocus()  # Move focus to the next box
+        elif len(text) == 1 and index == len(self.otp8_boxes) - 1:
+            self.check_otp8()
+               
+
+    def update_timer8(self):
+        self.time_left -= 1
+        self.timer_label8.setText(f"Time remaining: {self.time_left} seconds")
+        if self.time_left == 0:
+            self.timer.stop()
+            self.clear_otp_input8()
+            self.otp_generated8
+            self.otp_generated8 = False
+            QMessageBox.warning(self, "OTP Expired", "Your OTP has expired. Please request a new OTP.")
+         
+
+    def fecth_group_id_by_email(self):
+        cursor = self.db.cursor()
+            #Query for saving accounts
+        cursor.execute("SELECT group_id FROM susu_members WHERE Email = %s", (self.current_user_email,))
+        susu_accounts = [id [0] for id in cursor.fetchall() ]
+        cursor.close()
+        return susu_accounts
+    
+    
+       
+       
+
+    def perform_susu_account_to_susu_group_transfer(self):
+        group_acc = self.group_acc_input.text()
+        transfer_amount8 = self.transfer_amount8_input.text()
+        group_ids = self.fecth_group_id_by_email()
+
+        
+
+
+          # Validate inputs
+        if not group_acc or not transfer_amount8:
+            self.transfer8_notify_label.setText("Please fill in all fields.")
+            self.transfer8_notify_label.show()
+            return
+
+        try:
+            transfer_amount8= Decimal(transfer_amount8)
+        except ValueError:
+            self.transfer8_notify_label.setText("Please enter a valid amount.")
+            self.transfer8_notify_label.show()
+            return
+
+        if transfer_amount8 <= 0:
+            self.transfer8_notify_label.setText("Transfer amount must be greater than zero.")
+            self.transfer8_notify_label.show()
+            return
+        
+        if group_acc not in group_ids:
+            self.transfer8_notify_label.setText("Please Enter A Valid Group ID")
+            self.transfer8_notify_label.show()
+            return
+        
+        if transfer_amount8 != "":
+            self.generate_otp8()
+            self.otp_generated8 = True
+            self.info_label8.show()
+            self.container8.show()
+            self.timer_label8.show()
+            self.transfer8_regenerate_otp_button.show()
+            self.transfer8_notify_label.setText("")
+            self.group_acc_input.hide()
+            self.transfer_amount8_input.hide()
+      
+            self.start_timer8()
+
+        self.transfer8_notify_label.hide()  
+
+    def perform_transaction8(self):    
+
+        group_acc = self.group_acc_input.text()
+        transfer_amount8 = self.transfer_amount8_input.text()
+
+        transfer_amount8 = Decimal(transfer_amount8)
+
+        
+
+
+        try:
+            cursor = self.db.cursor()
+
+        # Check if the account has a PIN set
+            cursor.execute("SELECT PIN FROM my_accountdb WHERE Email = %s", (self.current_user_email,))
+            account1_result = cursor.fetchone()
+
+            if not account1_result or account1_result[0] is None:
+                QMessageBox.information(self, "Accout Not Found", "Please activate your account by setting a PIN.")
+                self.group_acc_input.clear()
+                self.transfer_amount8_input.clear()
+                return
+          
+
+            # Check if susu group account exists 
+            cursor.execute("SELECT Balance FROM susu_account WHERE Email= %s", (self.current_user_email,))
+            sender_result = cursor.fetchone()
+
+            if not sender_result:
+               
+               QMessageBox.information(self, "Failed", "Account not Found")
+               self.group_acc_input.clear()
+               self.transfer_amount8_input.clear()
+               return
+
+            
+            sender_balance = sender_result[0]
+
+
+            
+            cursor.execute("SELECT total_funds FROM group_funds WHERE group_id= %s", (group_acc,))
+            result = cursor.fetchone()
+
+            if not result:
+               QMessageBox.information(self, "Failed", "Account not Found")
+               self.group_acc_input.clear()
+               self.transfer_amount8_input.clear()
+               return
+
+
+            funds_balance = result[0]
+            
+            
+               
+            cursor.execute("SELECT amount FROM contributions WHERE member_id = %s AND group_id = %s " ,(self.phone_number, group_acc,))
+            account1_result = cursor.fetchone()
+
+            # Convert the fetched amount to Decimal
+            account1_balance = account1_result[0]
+
+            cursor.execute("SELECT status FROM susu_groups WHERE group_id = %s", (group_acc,))
+            group_status = cursor.fetchone()[0]
+
+            if group_status == 'Inactive':
+                QMessageBox.information(self, "Account Inactive", " Account is inactive")
+                self.group_acc_input.clear()
+                self.transfer_amount8_input.clear()
+                return
+
+            # Get all active Susu groups and their intervals
+            cursor.execute("SELECT Contribution_Amount FROM susu_groups WHERE Group_ID = %s ", (group_acc,))
+            amount = cursor.fetchone()
+
+            amount = amount[0]
+
+            if transfer_amount8 != amount:
+                QMessageBox.information(self, "Amount Not Up To", "Enter Amount to be Paid")
+                self.group_acc_input.clear()
+                self.transfer_amount8_input.clear()
+                return
+
+
+
+            if sender_balance < transfer_amount8:
+                    QMessageBox.information(self, "Failed", "Insufficient Balance")
+                    self.transfer_amount8_input.clear()
+                    self.group_acc_input.clear()
+                    return
+            
+
+                
+            
+         
+
+            # Perform the transfer
+            new_sender1_balance = sender_balance - transfer_amount8
+            new_account1_balance = account1_balance + transfer_amount8
+            total_funds = funds_balance + transfer_amount8
+
+            check_group_query = "SELECT Group_name FROM susu_groups WHERE group_id = %s"
+            cursor.execute(check_group_query, (group_acc,))
+            group = cursor.fetchone()
+
+            if not group:
+             # If group ID does not exist, show a warning message
+                QMessageBox.warning(self, "Group Not Found", "The specified group ID does not exist.")
+                cursor.close()
+                self.transfer_amount8_input.clear()
+                self.group_acc_input.clear()
+                return
+              # If group ID exists, get the group name
+            group_name = group[0]
+
+           
+        # Prompt for user confirmation
+            confirmation_msg = QMessageBox.question(
+            self,
+            "Confirm Transaction",
+            f"Do you want to send money to  '{group_name}'?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+            
+            if confirmation_msg == QMessageBox.No:
+            # If user declines, halt the process
+                cursor.close()
+                self.transfer_amount8_input.clear()
+                self.group_acc_input.clear()
+                return 
+
+            cursor.execute("UPDATE contributions SET amount = %s , status = %s WHERE member_id = %s AND group_id = %s", (new_account1_balance, 'Completed', self.phone_number, group_acc))
+            self.db.commit()
+            cursor.execute("UPDATE susu_account SET Balance = %s WHERE Email = %s", (new_sender1_balance, self.current_user_email))
+            self.db.commit()
+            cursor.execute("UPDATE group_funds SET total_funds = %s WHERE group_id = %s", (total_funds, group_acc))
+            self.db.commit()
+
+
+            QMessageBox.information(self, "Success", f"Transfer of Gh¢ {transfer_amount8:.2f} from susu account: {self.phone_number} to susu_group,  completed successfully.")
+
+            from_account = "Susu Account"
+            to_account = "Susu Group"
+            from_account_id = self.phone_number
+            to_account_id = group_acc
+            Type = "External"
+            
+             # Generate unique transaction ID
+            contribution_id = str(uuid.uuid4())
+            contribution_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+       
+               # Insert the transaction record
+            cursor.execute("""
+                         INSERT INTO transactionsdb (Date, From_Account, To_Account, From_Account_ID, Debit, To_Account_ID, Credit, Transaction_ID, Type_, Email)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (contribution_date, from_account, to_account, from_account_id, transfer_amount8, to_account_id, transfer_amount8, contribution_id, Type, self.current_user_email,))
+            self.load_transactions()
+
+            self.db.commit()
+
+            cursor.execute("UPDATE contributions SET Contribution_ID = %s, Contribution_date = %s WHERE member_id = %s AND Group_id = %s", (contribution_id,contribution_date,self.phone_number, group_acc,))
+            self.db.commit()
+
+        # Clear the input fields after successful transfer
+            self.transfer_amount1_input.clear()
+            self.sender1_acc_input.clear()
+
+        except mysql.connector.Error as e:
+            QMessageBox.information(self, "Failed", "Error tranfering from saving Account to Wallet")    
+
+    def start_timer8(self):
+
+         # Check if timer is already running, stop it first
+        if hasattr(self, 'timer') and self.timer.isActive():
+            self.timer.stop()
+           # Initialize timer
+        self.time_left = 60 # 3 minutes (180 seconds)
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_timer8)
+        self.timer.start(1000)  # Update timer every  
+
+
+    def generate_otp8(self):
+        email = self.current_user_email
+        number = self.phone_number
+        self.otp8 = str(random.randint(100000, 999999))
+        QMessageBox.information(self,"OTP", f"Sending OTP to {email}")
+        QMessageBox.information(self,"OTP", f"""Your Verification code: {self.otp8}
+For security reasons, do not share
+this code with anyone. Enter this code 
+to perform the transaction""") 
+        QMessageBox.information(self,"OTP", f"Sending OTP to {number}")
+        QMessageBox.information(self,"OTP", f"""Your Verification code: {self.otp8}
+For security reasons, do not share
+this code with anyone. Enter this code 
+to the transaction""") # Print the generated OTP
+        self.start_timer8()
+
+    
+
+    def clear_otp_input8(self):
+        for otp_box in self.otp8_boxes:
+            otp_box.clear()  
+       
+        
+
+    
+
+    def check_otp8(self):
+        entered_otp = "".join(box.text() for box in self.otp8_boxes)
+
+        if self.time_left <= 0:
+           QMessageBox.warning(self, "OTP Expired", "Your OTP has expired. Please request a new OTP.")
+           self.clear_otp_input8()
+           self.otp_generated8 = False
+           return
+           
+        if entered_otp == self.otp8:
+            QMessageBox.information(self, "Success", "OTP Matched Successfully")
+            self.clear_otp_input8()
+            
+            self.info_label8.hide()
+            self.container8.hide()
+            self.timer_label8.hide()
+            self.transfer8_regenerate_otp_button.hide()
+            self.timer.stop() 
+            self.group_acc_input.show()
+            self.transfer_amount8_input.show()
+            self.perform_transaction8()
+            
+            
+          
+           
+
+
+        else:
+            QMessageBox.warning(self, "Error", "Invalid OTP, Please try again")
+            self.clear_otp_input8()
+            self.otp_generated8 = False   
+          
+
 
     
 
@@ -3837,7 +5134,7 @@ to successfully change your Email Address""") # Print the generated OTP
         from_investment_button.setIcon(icon)
 
 # Set the text for the button
-        from_investment_button.setText(" | Investment Account")
+        from_investment_button.setText(" | Susu Account")
 
         from_investment_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(32))
 
@@ -3923,7 +5220,7 @@ to successfully change your Email Address""") # Print the generated OTP
         self.transfer4_button.setParent(transfer_to_my_saving_account_widget)
 
         self.transfer4_notify_label = QLabel("", self)
-        self.transfer4_notify_label.setGeometry(50, 550, 600, 50)
+        self.transfer4_notify_label.setGeometry(50, 380, 600, 50)
         self.transfer4_notify_label.setStyleSheet("color: red; font-size: 25px;")
         self.transfer4_notify_label.setParent(transfer_to_my_saving_account_widget)
 
@@ -4034,7 +5331,7 @@ to successfully change your Email Address""") # Print the generated OTP
             self.pin_info_label.show()
             self.pin_container.show()
             self.pin_label.show()
-            self.receiver1_acc_input.hide()
+            self.receiver_acc_input.hide()
             self.transfer4_amount_input.hide()
       
             
@@ -4146,12 +5443,12 @@ to successfully change your Email Address""") # Print the generated OTP
     
 
     def check_pin(self):
-        entered_otp = "".join(box.text() for box in self.pin_boxes)
-        entered_otp = self.sha512_64_hash(entered_otp)
+        entered_pin = "".join(box.text() for box in self.pin_boxes)
+        entered_pin = self.sha512_64_hash(entered_pin)
 
-        print(self.get_pin())
-        print(entered_otp)
-        if entered_otp == self.get_pin():
+        
+        
+        if entered_pin == self.get_pin():
             
             
             self.clear_pin_input()
@@ -4172,20 +5469,20 @@ to successfully change your Email Address""") # Print the generated OTP
 
 
 
-    def transfer_to_investment_account(self) :
+    def transfer_to_susu_account(self) :
 
-        transfer_to_investment_account_widget =QWidget()
-        transfer_to_investment_account_label = QLabel("<html><p> Funds to Transfer to Investment Account<p></html>", transfer_to_investment_account_widget)
-        transfer_to_investment_account_label.setGeometry(350, 50, 600 , 80)
-        transfer_to_investment_account_label.setStyleSheet("background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")    
-        transfer_to_investment_account_label.setAlignment(Qt.AlignCenter)
+        transfer_to_susu_group_account_widget =QWidget()
+        transfer_to_susu_group_account_label = QLabel("<html><p> Funds to Transfer to Susu Account<p></html>", transfer_to_susu_group_account_widget)
+        transfer_to_susu_group_account_label.setGeometry(350, 50, 600 , 80)
+        transfer_to_susu_group_account_label.setStyleSheet("background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")    
+        transfer_to_susu_group_account_label.setAlignment(Qt.AlignCenter)
 
         self.receiver1_acc_input = QLineEdit(self)
         self.receiver1_acc_input.setGeometry(50, 200, 350, 50)
-        self.receiver1_acc_input.setPlaceholderText("Investment Account Number")
+        self.receiver1_acc_input.setPlaceholderText("Member ID")
         self.receiver1_acc_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
         self.receiver1_acc_input.setClearButtonEnabled(True)
-        self.receiver1_acc_input.setParent(transfer_to_investment_account_widget)
+        self.receiver1_acc_input.setParent(transfer_to_susu_group_account_widget)
 
 
         self.transfer5_amount_input = QLineEdit(self)
@@ -4193,7 +5490,7 @@ to successfully change your Email Address""") # Print the generated OTP
         self.transfer5_amount_input.setPlaceholderText("Amount to Transfer")
         self.transfer5_amount_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
         self.transfer5_amount_input.setClearButtonEnabled(True)
-        self.transfer5_amount_input.setParent(transfer_to_investment_account_widget)
+        self.transfer5_amount_input.setParent(transfer_to_susu_group_account_widget)
 
         self.transfer5_button = QPushButton("Transfer", self)
         transfer5_button_width = 300
@@ -4209,23 +5506,248 @@ to successfully change your Email Address""") # Print the generated OTP
                                            background-color: #333333;
                                                         }
                                           """)
-        #self.transfer_button.clicked.connect(self.perform_own_account_transfer)
-        self.transfer5_button.setParent(transfer_to_investment_account_widget)
+        self.transfer5_button.clicked.connect(self.perform_wallet_to_susu_group_account_transfer)
+        self.transfer5_button.setParent(transfer_to_susu_group_account_widget)
 
         self.transfer5_notify_label = QLabel("", self)
-        self.transfer5_notify_label.setGeometry(50, 550, 600, 50)
+        self.transfer5_notify_label.setGeometry(50, 380, 600, 50)
         self.transfer5_notify_label.setStyleSheet("color: red; font-size: 25px;")
-        self.transfer5_notify_label.setParent(transfer_to_investment_account_widget)
+        self.transfer5_notify_label.setParent(transfer_to_susu_group_account_widget)
 
-        self.stacked_widget.addWidget(transfer_to_investment_account_widget)
+        
+
+            #Create a QLabel for the information display 
+        self.pin_info_label3_widget = QWidget()
+        self.pin_info_label3 = QLabel("<html><p>Enter Your Pin<p></html> ", self.pin_info_label3_widget)
+        self.pin_info_label3.setAlignment(Qt.AlignCenter)
+        self.pin_info_label3.setGeometry(50,200,400,40)
+        self.pin_info_label3.setStyleSheet("background-color: black; color: white; padding: 10px; border-radius: 100px; font-size: 10pt;")
+        self.pin_info_label3.hide() # Hide the info label initially
+        self.pin_info_label3.setParent(transfer_to_susu_group_account_widget)
+
+        #create a container widget for the otp input
+        self.pin_container3 = QWidget()
+        self.pin_container3.setGeometry(50,235,400,100)
+        self.pin_container3.setStyleSheet("background-color: blue; border-radius: 5px; padding: 5px;")
+        self.pin_container3.hide()
+        self.pin_container3.setParent(transfer_to_susu_group_account_widget)
+
+        # Create a QVBoxLayout for the container
+        self.pin_container_layout3 = QVBoxLayout(self.pin_container3)
+        self.pin_container_layout3.setContentsMargins(0, 0, 0, 0)  # No margins
+       # self.container_layout.setParent(email_widget)
+
+
+       
+
+        #Create a QHBoxlayout for the OTP boxes 
+        self.layout = QHBoxLayout()
+        self.layout.setContentsMargins(10,10,10,10) #set Margins
+      #  self.layout.setParent(email_widget)
+
+           #Create Six QLineEDIT Boxes for the otp
+        self.pin3_boxes = []
+        for _ in range(4):
+            pin3_box = QLineEdit(self.pin_container3)
+            pin3_box.setFixedSize(50, 50)  # Set fixed size for each box
+            pin3_box.setMaxLength(1)  # Limit input to one character
+            pin3_box.setAlignment(Qt.AlignCenter)  # Center align text
+            pin3_box.setStyleSheet(
+                "background-color: white; border: 1px solid black; border-radius: 10px; font-size: 18px;")
+            self.layout.addWidget(pin3_box)
+            self.pin3_boxes.append(pin3_box)
+             # Connect textChanged signal to handle_otp_input slot
+            pin3_box.textChanged.connect(self.handle_pin_input3)
+
+
+        self.pin_container_layout3.addLayout(self.layout)
+
+          # Create a QLabel for time remaining display (initially hidden)
+        self.pin_label3_widget = QWidget()
+        self.pin_label3 = QLabel("", self.pin_label3_widget)
+        self.pin_label3.setAlignment(Qt.AlignCenter)
+        self.pin_label3.setGeometry(50,335,400,40)
+        self.pin_label3.setStyleSheet("background-color: black; color: white; padding: 10px; border-radius: 100px; font-size: 10pt;")
+        self.pin_label3.hide()
+        self.pin_label3.setParent(transfer_to_susu_group_account_widget)
 
 
 
+        self.stacked_widget.addWidget(transfer_to_susu_group_account_widget)
+
+        
+    def handle_pin_input3(self, text):
+        current_pin = self.sender()  # Get the sender QLineEdit
+        index = self.pin3_boxes.index(current_pin)
+        if len(text) == 1 and index < len(self.pin3_boxes) - 1:
+            self.pin3_boxes[index + 1].setFocus()  # Move focus to the next box
+        elif len(text) == 1 and index == len(self.pin3_boxes) - 1:
+            self.check_pin3()
+               
+    
+       
+       
+
+    def perform_wallet_to_susu_group_account_transfer(self):
+        receiver_acc1 = self.receiver1_acc_input.text()
+        transfer_amount5 = self.transfer5_amount_input.text()
 
 
+          # Validate inputs
+        if not receiver_acc1 or not transfer_amount5:
+            self.transfer5_notify_label.setText("Please fill in all fields.")
+            self.transfer5_notify_label.show()
+            return
+
+        
+        transfer_amount5 = Decimal(transfer_amount5)
+        
+            
+
+        if transfer_amount5 <= 0:
+            self.transfer5_notify_label.setText("Transfer amount must be greater than zero.")
+            self.transfer5_notify_label.show()
+            return
+        
+        if transfer_amount5 != "":
+            
+            self.pin_info_label3.show()
+            self.pin_container3.show()
+            self.pin_label3.show()
+            self.receiver1_acc_input.hide()
+            self.transfer5_amount_input.hide()
+    
+        self.transfer5_notify_label.hide()  
+
+    
+    def check_pin3(self):
+
+        entered_pin3 = "".join(box.text() for box in self.pin3_boxes)
+        entered_pin3 = self.sha512_64_hash(entered_pin3)
+        print(f"Entered PIN: {entered_pin3}")
+        print(f"Stored PIN: {self.get_susu_pin()}")
+        stored_pin = self.get_susu_pin()
+        receiver_acc1 = self.receiver1_acc_input.text()
+        transfer_amount5 = self.transfer5_amount_input.text()
+        transfer_amount5 = Decimal(transfer_amount5)
+
+        cursor = self.db.cursor()
+
+       
+        if entered_pin3 == stored_pin:
+            
+
+            cursor.execute("SELECT Balance FROM susu_account WHERE Member_ID =%s  AND Email = %s ",  (receiver_acc1, self.current_user_email,))
+            receiver_result = cursor.fetchone()
+
+            receiver_balance = receiver_result[0]
+
+              # Check if the user's bank account exists and get the current balance
+            cursor.execute("SELECT Balance FROM my_accountdb WHERE Email = %s", (self.current_user_email,))
+            wallet_result = cursor.fetchone()
+            
+      
+            # Convert the fetched amount to Decimal
+            wallet_balance = wallet_result[0]
 
 
+            
+            if wallet_balance < transfer_amount5:
+                    QMessageBox.information(self, "Failed", "Insufficient Balance")
+                    
+                    self.transfer5_amount_input.clear()
+                    self.receiver1_acc_input.clear()
+                    return
+            
 
+
+            # Perform the transfer
+            new_wallet_balance = wallet_balance - transfer_amount5
+            new_receiver_balance = receiver_balance + transfer_amount5
+
+            cursor.execute("UPDATE my_accountdb SET Balance = %s WHERE Email = %s", (new_wallet_balance, self.current_user_email))
+            self.db.commit()
+            cursor.execute("UPDATE susu_account SET Balance = %s WHERE Email = %s", (new_receiver_balance, self.current_user_email))
+            self.db.commit()
+
+            QMessageBox.information(self, "Success", f"Transfer of Gh¢ {transfer_amount5:.2f} To  {receiver_acc1},  completed successfully.")
+            from_account = "Wallet"
+            to_account = "Susu Account"
+            from_account_id = self.phone_number
+            Type = "Internal"
+            
+             # Generate unique transaction ID
+            transaction_id = str(uuid.uuid4())
+            transaction_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+       
+               # Insert the transaction record
+            cursor.execute("""
+                         INSERT INTO transactionsdb (Date, From_Account, To_Account, From_Account_ID, Debit, To_Account_ID, Credit, Transaction_ID, Type_, Email)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (transaction_date, from_account, to_account, from_account_id, transfer_amount5, receiver_acc1, transfer_amount5, transaction_id, Type, self.current_user_email,))
+            self.load_transactions()
+            self.db.commit()
+            
+
+        # Clear the input fields after successful transfer
+            self.transfer5_amount_input.clear()
+            self.receiver1_acc_input.clear()
+            self.clear_pin_input3()  
+            self.pin_info_label3.hide()
+            self.pin_container3.hide()
+            self.pin_label3.hide() 
+            self.receiver1_acc_input.show()
+            self.transfer5_amount_input.show()
+            
+        
+        else:
+        
+
+        # Check if the account has a PIN set
+            cursor.execute("SELECT PIN FROM my_accountdb WHERE Email = %s", (self.current_user_email,))
+            account2_result = cursor.fetchone()
+            
+
+            if not account2_result or account2_result[0] is None:
+                QMessageBox.information(self, "Failed", "Please Activate Your Account By Setting Pin")
+                self.clear_pin_input3()  
+                return
+            
+            cursor.execute("SELECT Pin FROM susu_account WHERE Email = %s", (self.current_user_email ,))
+            result = cursor.fetchone()
+            
+            
+            if not result or not result[0]:  # PIN exists and is not empty
+            # Account is activated, proceed to verify PIN
+        
+            # Account is not activated (PIN is empty), show appropriate message
+                QMessageBox.warning(self, "Account Not Activated", "Please join a susu group to activate your account.")
+                self.clear_pin_input3()  
+                return
+            
+            # Check if receiver account exists and has sufficient funds
+            cursor.execute("SELECT Balance FROM susu_account WHERE Member_ID =%s  AND Email = %s ",  (receiver_acc1, self.current_user_email,))
+            receiver_result = cursor.fetchone()
+            
+            if not receiver_result:
+               
+               QMessageBox.information(self, "Failed", "Account not Found")
+               self.clear_pin_input3()  
+    
+               return
+            
+            else :
+                QMessageBox.warning(self, "Error", "Wrong Pin, Please try again")
+                self.clear_pin_input3()
+                
+    
+
+    def clear_pin_input3(self):
+        for otp_box in self.pin3_boxes:
+            otp_box.clear()  
+       
+
+   
 
 
     def transfer_to_my_account(self):   
@@ -4282,9 +5804,6 @@ to successfully change your Email Address""") # Print the generated OTP
         from_saving_account_to_my_account_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(28))
 
         from_saving_account_to_my_account_button.setParent(transfer_to_my_account_widget)
-
-
-        
         from_investment_account_to_my_account_button = QPushButton(self)
         from_investment_account_to_my_account_button.setGeometry(50, 330, 500, 50)
                          
@@ -4317,7 +5836,7 @@ to successfully change your Email Address""") # Print the generated OTP
         from_investment_account_to_my_account_button.setIcon(icon)
 
 # Set the text for the button
-        from_investment_account_to_my_account_button.setText(" | Investment Account")
+        from_investment_account_to_my_account_button.setText(" | Susu Account")
 
         from_investment_account_to_my_account_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(29))
 
@@ -4658,16 +6177,17 @@ to successfully change your Email Address""") # Print the generated OTP
         email = self.current_user_email
         number = self.phone_number
         self.otp5 = str(random.randint(100000, 999999))
-        print(f"Sending OTP to {email}")
-        print(f"""Your Verification code: {self.otp5}
+        QMessageBox.information(self, "OTP", f"Sending OTP to {email}")
+        QMessageBox.information(self, "OTP", f"""Your Verification code: {self.otp5}
 For security reasons, do not share
 this code with anyone. Enter this code 
-to successfully change your Email Address""") 
-        print(f"Sending OTP to {number}")
-        print(f"""Your Verification code: {self.otp5}
+to perform the transaction""")
+        
+        QMessageBox.information(self, "OTP", f"Sending OTP to {number}")
+        QMessageBox.information(self, "OTP", f"""Your Verification code: {self.otp5}
 For security reasons, do not share
 this code with anyone. Enter this code 
-to successfully change your Email Address""") # Print the generated OTP
+to perform the transaction""") # Print the generated OTP
         self.start_timer5()
 
     
@@ -4714,29 +6234,29 @@ to successfully change your Email Address""") # Print the generated OTP
 
 
 
-    def investment_to_my_account_transfer(self):
+    def susu_to_my_wallet_transfer(self):
 
 
-        investment_to_my_account_transfer_widget =QWidget()
-        investment_to_my_account_transfer_label = QLabel("<html><p> Investment To Account Transfer<p></html>", investment_to_my_account_transfer_widget)
-        investment_to_my_account_transfer_label.setGeometry(350, 50, 600 , 80)
-        investment_to_my_account_transfer_label.setStyleSheet("background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")    
-        investment_to_my_account_transfer_label.setAlignment(Qt.AlignCenter)
+        susu_to_my_wallet_transfer_widget =QWidget()
+        susu_to_my_wallet_transfer_label = QLabel("<html><p> Susu To Wallet Transfer<p></html>", susu_to_my_wallet_transfer_widget)
+        susu_to_my_wallet_transfer_label.setGeometry(350, 50, 600 , 80)
+        susu_to_my_wallet_transfer_label.setStyleSheet("background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")    
+        susu_to_my_wallet_transfer_label.setAlignment(Qt.AlignCenter)
 
         
         self.sender2_acc_input = QLineEdit(self)
         self.sender2_acc_input.setGeometry(50, 200, 350, 50)
-        self.sender2_acc_input.setPlaceholderText("Enter Account Number")
+        self.sender2_acc_input.setPlaceholderText("Member ID")
         self.sender2_acc_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
         self.sender2_acc_input.setClearButtonEnabled(True)
-        self.sender2_acc_input.setParent(investment_to_my_account_transfer_widget)
+        self.sender2_acc_input.setParent(susu_to_my_wallet_transfer_widget)
 
         self.transfer_amount2_input = QLineEdit(self)
         self.transfer_amount2_input.setGeometry(50, 280, 350, 50)
         self.transfer_amount2_input.setPlaceholderText("Amount to Transfer")
         self.transfer_amount2_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
         self.transfer_amount2_input.setClearButtonEnabled(True)
-        self.transfer_amount2_input.setParent(investment_to_my_account_transfer_widget)
+        self.transfer_amount2_input.setParent(susu_to_my_wallet_transfer_widget)
 
         self.transfer2_button = QPushButton("Transfer", self)
         transfer2_button_width = 300
@@ -4752,16 +6272,313 @@ to successfully change your Email Address""") # Print the generated OTP
                                            background-color: #333333;
                                                              }
                                            """)
-      #  self.transfer_button.clicked.connect(self.perform_own_account_transfer)
-        self.transfer2_button.setParent(investment_to_my_account_transfer_widget)
+        self.transfer2_button.clicked.connect(self.perform_susu_account_to_wallet_transfer)
+        self.transfer2_button.setParent(susu_to_my_wallet_transfer_widget)
 
         self.transfer2_notify_label = QLabel("", self)
-        self.transfer2_notify_label.setGeometry(50, 550, 600, 50)
+        self.transfer2_notify_label.setGeometry(50, 380, 600, 50)
         self.transfer2_notify_label.setStyleSheet("color: red; font-size: 25px;")
-        self.transfer2_notify_label.setParent(investment_to_my_account_transfer_widget)
+        self.transfer2_notify_label.setParent(susu_to_my_wallet_transfer_widget)
 
-        self.stacked_widget.addWidget(investment_to_my_account_transfer_widget)
+        self.transfer2_regenerate_otp_button = QPushButton(self)
+        self.transfer2_regenerate_otp_button.setIcon(QIcon("refresh-page-option.png"))  # Set the icon for the button
+        self.transfer2_regenerate_otp_button.setToolTip("Regenerate OTP")  # Optional tooltip for the button
+        # Adjust the position and size of the button as needed
+        self.transfer2_regenerate_otp_button.setGeometry(410, 335, 40, 40)
+        self.transfer2_regenerate_otp_button.setStyleSheet("""
+                     QPushButton {
+                     background-color: blue;
+                      font-size: 18pt; 
+                      border-radius: 35px;
+                      }
+                       QPushButton:hover{
+                          background-color:#333333
+                      }
+                  """)
+        self.transfer2_regenerate_otp_button.hide()
+        self.transfer2_regenerate_otp_button.clicked.connect(self.generate_otp7)  # Connect the clicked signal
+        self.transfer2_regenerate_otp_button.setParent(susu_to_my_wallet_transfer_widget)
+        
+        self.otp_generated7 = False
+        self.otp7= ""
 
+        #Create a QLabel for the information display 
+        self.info_label7_widget = QWidget()
+        self.info_label7 = QLabel("<html><p>Enter the OTP....You have 1 minutes<p></html> ", self.info_label7_widget)
+        self.info_label7.setAlignment(Qt.AlignCenter)
+        self.info_label7.setGeometry(50,200,400,40)
+        self.info_label7.setStyleSheet("background-color: black; color: white; padding: 10px; border-radius: 100px; font-size: 10pt;")
+        self.info_label7.hide() # Hide the info label initially
+        self.info_label7.setParent(susu_to_my_wallet_transfer_widget)
+
+        #create a container widget for the otp input
+        self.container7 = QWidget()
+        self.container7.setGeometry(50,235,400,100)
+        self.container7.setStyleSheet("background-color: blue; border-radius: 5px; padding: 5px;")
+        self.container7.hide()
+        self.container7.setParent(susu_to_my_wallet_transfer_widget)
+
+        # Create a QVBoxLayout for the container
+        self.container_layout7 = QVBoxLayout(self.container7)
+        self.container_layout7.setContentsMargins(0, 0, 0, 0)  # No margins
+       # self.container_layout.setParent(email_widget)
+
+
+       
+
+        #Create a QHBoxlayout for the OTP boxes 
+        self.layout = QHBoxLayout()
+        self.layout.setContentsMargins(10,10,10,10) #set Margins
+      #  self.layout.setParent(email_widget)
+
+        #Create Six QLineEDIT Boxes for the otp
+        self.otp7_boxes = []
+        for _ in range(6):
+            otp7_box = QLineEdit(self.container7)
+            otp7_box.setFixedSize(50, 50)  # Set fixed size for each box
+            otp7_box.setMaxLength(1)  # Limit input to one character
+            otp7_box.setAlignment(Qt.AlignCenter)  # Center align text
+            otp7_box.setStyleSheet(
+                "background-color: white; border: 1px solid black; border-radius: 10px; font-size: 18px;")
+            self.layout.addWidget(otp7_box)
+            self.otp7_boxes.append(otp7_box)
+             # Connect textChanged signal to handle_otp_input slot
+            otp7_box.textChanged.connect(self.handle_otp_input7)
+
+
+        self.container_layout7.addLayout(self.layout)
+
+
+           # Create a QLabel for time remaining display (initially hidden)
+        self.timer_label7_widget = QWidget()
+        self.timer_label7 = QLabel("<html><p>Time remaining....60 seconds<p></html> ", self.timer_label7_widget)
+        self.timer_label7.setAlignment(Qt.AlignCenter)
+        self.timer_label7.setGeometry(50,335,360,40)
+        self.timer_label7.setStyleSheet("background-color: black; color: white; padding: 10px; border-radius: 100px; font-size: 10pt;")
+        self.timer_label7.hide()
+        self.timer_label7.setParent(susu_to_my_wallet_transfer_widget)
+
+
+        self.stacked_widget.addWidget(susu_to_my_wallet_transfer_widget)
+
+    def handle_otp_input7(self, text):
+        current_box = self.sender()  # Get the sender QLineEdit
+        index = self.otp7_boxes.index(current_box)
+        if len(text) == 1 and index < len(self.otp7_boxes) - 1:
+            self.otp7_boxes[index + 1].setFocus()  # Move focus to the next box
+        elif len(text) == 1 and index == len(self.otp7_boxes) - 1:
+            self.check_otp7()
+               
+
+    def update_timer7(self):
+        self.time_left -= 1
+        self.timer_label7.setText(f"Time remaining: {self.time_left} seconds")
+        if self.time_left == 0:
+            self.timer.stop()
+            self.clear_otp_input7()
+            self.otp_generated7
+            self.otp_generated7 = False
+            QMessageBox.warning(self, "OTP Expired", "Your OTP has expired. Please request a new OTP.")
+         
+
+       
+       
+
+    def perform_susu_account_to_wallet_transfer(self):
+        sender_acc2 = self.sender2_acc_input.text()
+        transfer_amount2 = self.transfer_amount2_input.text()
+
+
+          # Validate inputs
+        if not sender_acc2 or not transfer_amount2:
+            self.transfer2_notify_label.setText("Please fill in all fields.")
+            self.transfer2_notify_label.show()
+            return
+
+        try:
+            transfer_amount2 = Decimal(transfer_amount2)
+        except ValueError:
+            self.transfer2_notify_label.setText("Please enter a valid amount.")
+            self.transfer2_notify_label.show()
+            return
+
+        if transfer_amount2 <= 0:
+            self.transfer2_notify_label.setText("Transfer amount must be greater than zero.")
+            self.transfer2_notify_label.show()
+            return
+        
+        if transfer_amount2 != "":
+            self.generate_otp7()
+            self.otp_generated7 = True
+            self.info_label7.show()
+            self.container7.show()
+            self.timer_label7.show()
+            self.transfer2_regenerate_otp_button.show()
+            self.transfer2_notify_label.setText("")
+            self.sender2_acc_input.hide()
+            self.transfer_amount2_input.hide()
+      
+            self.start_timer7()
+
+        self.transfer2_notify_label.hide()  
+
+    def perform_transaction6(self):    
+        sender_acc2 = self.sender2_acc_input.text()
+        transfer_amount2 = self.transfer_amount2_input.text()
+
+        transfer_amount2 = Decimal(transfer_amount2)
+
+        
+
+
+        try:
+            cursor = self.db.cursor()
+
+        # Check if the account has a PIN set
+            cursor.execute("SELECT PIN FROM my_accountdb WHERE Email = %s", (self.current_user_email,))
+            account2_result = cursor.fetchone()
+
+            if not account2_result or account2_result[0] is None:
+                QMessageBox.information(self, "Error","Please activate your account by setting a PIN.")
+                
+                return
+
+
+            # Check if sender account exists and has sufficient funds
+            cursor.execute("SELECT Balance FROM susu_account WHERE member_id = %s", (sender_acc2,))
+            sender_result = cursor.fetchone()
+
+            if not sender_result:
+               
+               QMessageBox.information(self, "Failed", "Account not Found")
+               self.sender2_acc_input.clear()
+               self.transfer_amount2_input.clear()
+               return
+            
+            sender2_balance = sender_result[0]
+
+            if sender2_balance < transfer_amount2:
+                    QMessageBox.information(self, "Failed", "Insufficient Balance")
+                    self.transfer_amount2_input.clear()
+                    self.sender2_acc_input.clear()
+                    return
+            
+
+                
+            
+            
+            # Check if the user's bank account exists and get the current balance
+            cursor.execute("SELECT Balance FROM my_accountdb WHERE Email = %s", (self.current_user_email,))
+            account1_result = cursor.fetchone()
+
+            # Convert the fetched amount to Decimal
+            account1_balance = account1_result[0]
+
+
+            # Perform the transfer
+            new_sender2_balance = sender2_balance - transfer_amount2
+            new_account1_balance = account1_balance + transfer_amount2
+
+            cursor.execute("UPDATE my_accountdb SET Balance = %s WHERE Email = %s", (new_account1_balance, self.current_user_email))
+            self.db.commit()
+            cursor.execute("UPDATE susu_account SET Balance = %s WHERE Email = %s", (new_sender2_balance, self.current_user_email))
+            self.db.commit()
+
+            QMessageBox.information(self, "Success", f"Transfer of Gh¢ {transfer_amount2:.2f} from  {sender_acc2} to Wallet,  completed successfully.")
+
+            from_account = "Susu Account"
+            to_account = "Wallet"
+            to_account_id = self.phone_number
+            Type = "Internal"
+            
+             # Generate unique transaction ID
+            transaction_id = str(uuid.uuid4())
+            transaction_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+       
+               # Insert the transaction record
+            cursor.execute("""
+                         INSERT INTO transactionsdb (Date, From_Account, To_Account, From_Account_ID, Debit, To_Account_ID, Credit, Transaction_ID, Type_, Email)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (transaction_date, from_account, to_account, sender_acc2, transfer_amount2, to_account_id, transfer_amount2, transaction_id, Type,self.current_user_email,))
+            self.load_transactions()
+            self.db.commit()
+
+        # Clear the input fields after successful transfer
+            self.transfer_amount2_input.clear()
+            self.sender2_acc_input.clear()
+
+        except mysql.connector.Error as e:
+            QMessageBox.information(self, "Failed", "Error tranfering from saving Account to Wallet")    
+
+    def start_timer7(self):
+
+         # Check if timer is already running, stop it first
+        if hasattr(self, 'timer') and self.timer.isActive():
+            self.timer.stop()
+           # Initialize timer
+        self.time_left = 60 # 3 minutes (180 seconds)
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_timer7)
+        self.timer.start(1000)  # Update timer every  
+
+
+    def generate_otp7(self):
+        email = self.current_user_email
+        number = self.phone_number
+        self.otp7 = str(random.randint(100000, 999999))
+        QMessageBox.information( self, "OTP", f"Sending OTP to {email}")
+        QMessageBox.information( self, "OTP", f"""Your Verification code: {self.otp7}
+For security reasons, do not share
+this code with anyone. Enter this code 
+to perform the transaction""") 
+        QMessageBox.information( self, "OTP", f"Sending OTP to {number}")
+        QMessageBox.information( self, "OTP", f"""Your Verification code: {self.otp7}
+For security reasons, do not share
+this code with anyone. Enter this code 
+to perform the transaction""") # Print the generated OTP
+        self.start_timer7()
+
+    
+
+    def clear_otp_input7(self):
+        for otp_box in self.otp7_boxes:
+            otp_box.clear()  
+       
+        
+
+    
+
+    def check_otp7(self):
+        entered_otp = "".join(box.text() for box in self.otp7_boxes)
+
+        if self.time_left <= 0:
+           QMessageBox.warning(self, "OTP Expired", "Your OTP has expired. Please request a new OTP.")
+           self.clear_otp_input7()
+           self.otp_generated7 = False
+           return
+           
+        if entered_otp == self.otp7:
+            QMessageBox.information(self, "Success", "OTP Matched Successfully")
+            self.clear_otp_input7()
+            
+            self.info_label7.hide()
+            self.container7.hide()
+            self.timer_label7.hide()
+            self.transfer2_regenerate_otp_button.hide()
+            self.timer.stop() 
+            self.sender2_acc_input.show()
+            self.transfer_amount2_input.show()
+            self.perform_transaction6()
+            
+            
+          
+           
+
+
+        else:
+            QMessageBox.warning(self, "Error", "Invalid OTP, Please try again")
+            self.clear_otp_input5()
+            self.otp_generated4 = False   
 
     def mobile_wallet_to_account_transfer(self):
 
@@ -4891,19 +6708,6 @@ to successfully change your Email Address""") # Print the generated OTP
 
 
 
-
-            
-
-        
-
-
-
-
-
-     
-    
-
-
     def another_account_page(self):
         another_account_widget =QWidget()
         another_account_label = QLabel("<html><p> Funds to Transfer-To Inter Account<p></html>", another_account_widget)
@@ -4945,7 +6749,7 @@ to successfully change your Email Address""") # Print the generated OTP
         self.transfer7_button.setParent(another_account_widget)
 
         self.transfer7_notify_label = QLabel("", self)
-        self.transfer7_notify_label.setGeometry(50, 550, 600, 50)
+        self.transfer7_notify_label.setGeometry(50, 380, 600, 50)
         self.transfer7_notify_label.setStyleSheet("color: red; font-size: 25px;")
         self.transfer7_notify_label.setParent(another_account_widget)
 
@@ -5150,24 +6954,19 @@ to successfully change your Email Address""") # Print the generated OTP
             QMessageBox.information(self, "Failed", "Error tranfering from saving Account to Wallet")    
 
 
-
-    
-
     def clear_pin_input1(self):
         for otp_box in self.pin1_boxes:
             otp_box.clear()  
        
-        
-
     
 
     def check_pin1(self):
-        entered_otp = "".join(box.text() for box in self.pin1_boxes)
-        entered_otp = self.sha512_64_hash(entered_otp)
+        entered_pin1 = "".join(box.text() for box in self.pin1_boxes)
+        entered_pin1 = self.sha512_64_hash(entered_pin1)
 
-        print(self.get_pin())
-        print(entered_otp)
-        if entered_otp == self.get_pin():
+        
+        
+        if entered_pin1 == self.get_pin():
             
             
             self.clear_pin_input1()
@@ -5193,9 +6992,6 @@ to successfully change your Email Address""") # Print the generated OTP
         wallet_label.setAlignment(Qt.AlignCenter)
         self.stacked_widget.addWidget(wallet_widget)
 
-        
-
-        
         
 
         self.receiver2_acc_input = QLineEdit(self)
@@ -5231,7 +7027,7 @@ to successfully change your Email Address""") # Print the generated OTP
         self.transfer6_button.setParent(wallet_widget)
 
         self.transfer6_notify_label = QLabel("", self)
-        self.transfer6_notify_label.setGeometry(50, 550, 600, 50)
+        self.transfer6_notify_label.setGeometry(50, 380, 600, 50)
         self.transfer6_notify_label.setStyleSheet("color: red; font-size: 25px;")
         self.transfer6_notify_label.setParent(wallet_widget)
 
@@ -5431,12 +7227,11 @@ to successfully change your Email Address""") # Print the generated OTP
     
 
     def check_pin2(self):
-        entered_otp = "".join(box.text() for box in self.pin2_boxes)
-        entered_otp = self.sha512_64_hash(entered_otp)
+        entered_pin2 = "".join(box.text() for box in self.pin2_boxes)
+        entered_pin2 = self.sha512_64_hash(entered_pin2)
 
-        print(self.get_pin())
-        print(entered_otp)
-        if entered_otp == self.get_pin():
+       
+        if entered_pin2 == self.get_pin():
             
             
             self.clear_pin_input2()
@@ -5544,11 +7339,6 @@ to successfully change your Email Address""") # Print the generated OTP
 
 
 
-
-
-
-
-
         self.stacked_widget.addWidget(loan_widget)
 
 
@@ -5560,6 +7350,15 @@ to successfully change your Email Address""") # Print the generated OTP
         loan_balance_label.setStyleSheet(
             "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
         loan_balance_label.setAlignment(Qt.AlignCenter)
+
+       # profile_layout.addWidget(welcome_label)
+
+
+        loan_balance_label1 = QLabel("<html><p>You are not eligible for loan<p></>", loan_balance_widget)
+        loan_balance_label1.setGeometry(350,350,600,200)
+        loan_balance_label1.setStyleSheet(
+            "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
+        loan_balance_label1.setAlignment(Qt.AlignCenter)
        # profile_layout.addWidget(welcome_label)
        
 
@@ -5575,6 +7374,15 @@ to successfully change your Email Address""") # Print the generated OTP
             "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
         loan_request_label.setAlignment(Qt.AlignCenter)
        # profile_layout.addWidget(welcome_label)
+
+
+        loan_request_label1 = QLabel("<html><p>You are not eligible for loan<p></>", loan_request_widget)
+        loan_request_label1.setGeometry(350,350,600,200)
+        loan_request_label1.setStyleSheet(
+            "background-color: black; color: white; padding: 20px; border-radius: 40px; font-size: 18pt;")
+        loan_request_label1.setAlignment(Qt.AlignCenter)
+       # profile_layout.addWidget(welcome_label)
+       
        
 
         self.stacked_widget.addWidget(loan_request_widget)      
@@ -6004,14 +7812,9 @@ to successfully change your Email Address""") # Print the generated OTP
 
         PIN = self.get_pin()
         
-
-
-
         
         hash_pin = self.sha512_64_hash(current_pin)
  
-    
-
  
         if hash_pin != PIN:
             self.pin_notification_label.setText("Current Pin does not match.")
@@ -6069,7 +7872,6 @@ to successfully change your Email Address""") # Print the generated OTP
             
             self.confirm_update_pin_input.hide()
             self.start_timer3()
-            print(self.get_pin())
            
           
 
@@ -6086,6 +7888,16 @@ to successfully change your Email Address""") # Print the generated OTP
         cursor.close()
 
         return result[0] if result else None  # Assuming PIN is the first column in the result
+    
+    def get_susu_pin(self):
+               # Fetch and return the PIN from your database based on the user's email
+        cursor = self.db.cursor()
+        cursor.execute("SELECT Pin FROM susu_account WHERE Email = %s", (self.current_user_email,))
+        result = cursor.fetchone()
+        cursor.close()
+
+        return result[0] if result else None  # Assuming PIN is the first column in the result
+
 
 
         
@@ -6112,27 +7924,33 @@ to successfully change your Email Address""") # Print the generated OTP
         sql = "UPDATE  my_accountdb SET PIN = %s WHERE Email = %s"
         cursor.execute (sql, (hash_updated_pin, email,))
         self.db.commit()
-        cursor.close()
-        
+
+        cursor = self.db.cursor()
+        sql = "UPDATE  susu_account SET Pin = %s WHERE Email = %s"
+        cursor.execute (sql, (hash_updated_pin, email,))
+        self.db.commit()
 
         QMessageBox.information(self, "Pin Changed", "You have successfully changed your Pin.")
+
 
         sql = "INSERT INTO alertdb (message, created_at, Email) VALUES(%s, NOW(), %s)"
         cursor.execute(sql, (message, self.current_user_email,))
         self.db.commit()
-        cursor.close()
-        self.load_alert()
 
         self.main_window = MainWindow()
         self.main_window.show()
-        self.close() 
+        self.close()
+        
+        self.load_alert()
+
+
+        
+        
+        
+        
 
     
            
-          
- 
-
-
 
         
        
@@ -6140,13 +7958,14 @@ to successfully change your Email Address""") # Print the generated OTP
         email = self.current_user_email
         number = self.phone_number
         self.otp3 = str(random.randint(100000, 999999))
-        print(f"Sending OTP to {email}")
-        print(f"""Your Verification code: {self.otp3}
+        QMessageBox.information(self, "OTP", f"Sending OTP to {email}")
+        
+        QMessageBox.information(self, "OTP", f"""Your Verification code: {self.otp3}
 For security reasons, do not share
 this code with anyone. Enter this code 
 to successfully change your Pin""")  # Print the generated OTP
-        print(f"Sending OTP to {number}")
-        print(f"""Your Verification code: {self.otp3}
+        QMessageBox.information(self, "OTP", f"Sending OTP to {number}")
+        QMessageBox.information(self, "OTP", f"""Your Verification code: {self.otp3}
 For security reasons, do not share
 this code with anyone. Enter this code 
 to successfully change your Pin""") # Print the generated OTP
@@ -6170,6 +7989,7 @@ to successfully change your Pin""") # Print the generated OTP
         if entered_otp == self.otp3:
             QMessageBox.information(self, "Success", "OTP Matched Successfully")
             self.clear_otp_input3()
+            self.update_database3()
             self.generate_otp3 = False
             self.info_label3.hide()
             self.container3.hide()
@@ -6272,17 +8092,6 @@ to successfully change your Pin""") # Print the generated OTP
                 font.setPointSize(10)  # Adjust the font size as needed
                 self.confirm_update_pin_input.setFont(font)   
           
-    
-
-
-
-
-
-
-
-
-
-       
 
 
     def notification_page(self):
@@ -6385,9 +8194,6 @@ to successfully change your Pin""") # Print the generated OTP
 
         change_number_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(21))
         change_number_button.setParent(edit_profile_widget)
-
-
-
 
         self.stacked_widget.addWidget(edit_profile_widget)
 
@@ -6637,9 +8443,9 @@ to successfully change your Pin""") # Print the generated OTP
            return
 
         if entered_otp =="":
-            
-            self.otp_generated = False
             self.generate_otp()
+            self.generate_otp = True
+            
             self.info_label.show()
             self.container.show()
             self.timer_label.show()
@@ -6700,10 +8506,39 @@ to successfully change your Pin""") # Print the generated OTP
                 sql = "UPDATE my_accountdb SET Email = %s WHERE Email = %s"
                 cursor.execute(sql, (new_email, email))
 
-            
                 self.db.commit()
 
+                
+                sql = "UPDATE susu_account SET Email = %s WHERE Email = %s"
+                cursor.execute(sql, (new_email, email))
+
+                self.db.commit()
+
+                
+                sql = "UPDATE susu_members SET Email = %s WHERE Email = %s"
+                cursor.execute(sql, (new_email, email))
+
+                self.db.commit()
+
+                sql = "UPDATE login_logs SET Email = %s WHERE Email = %s"
+                cursor.execute(sql, (new_email, email))
+
+                self.db.commit()
+
+                sql = "UPDATE susu_groups SET Email = %s WHERE Email = %s"
+                cursor.execute(sql, (new_email, email))
+
+                self.db.commit()
+
+
+
                 sql = "UPDATE saving_accountdb SET Email = %s WHERE Email = %s"
+                cursor.execute(sql, (new_email, email))
+
+                
+                self.db.commit()
+
+                sql = "UPDATE alertdb SET Email = %s WHERE Email = %s"
                 cursor.execute(sql, (new_email, email))
 
                 
@@ -6724,7 +8559,8 @@ to successfully change your Pin""") # Print the generated OTP
        
             self.main_window = MainWindow()
             self.main_window.show()
-            self.close() 
+            self.close()
+           
         
         except mysql.connector.Error as e:
             QMessageBox.critical(self, "Database Error", f"Error updating logout time: {e}")
@@ -6738,8 +8574,8 @@ to successfully change your Pin""") # Print the generated OTP
     def generate_otp(self):
         email = self.current_user_email
         self.otp = str(random.randint(100000, 999999))
-        print(f"Sending OTP to {email}")
-        print(f"""Your Verification code: {self.otp}
+        QMessageBox.information(self, "OTP", f"Sending OTP to {email}")
+        QMessageBox.information(self, "OTP", f"""Your Verification code: {self.otp}
 For security reasons, do not share
 this code with anyone. Enter this code 
 to successfully change your Email Address""")  # Print the generated OTP
@@ -6764,13 +8600,19 @@ to successfully change your Email Address""")  # Print the generated OTP
         if entered_otp == self.otp:
             QMessageBox.information(self, "Success", "OTP Matched Successfully")
             self.clear_otp_input()
-            self.generate_otp = False
+            self.update_database()
             self.info_label.hide()
             self.container.hide()
             self.timer_label.hide()
             self.regenerate_otp_button.hide()
+            self.new_email_input.clear()
+            self.email_input.clear()
+            self.email_input.show()
+            self.confirm_email_input.clear()
+            self.new_email_input.show()
+            self.confirm_email_input.show()
             self.timer.stop() 
-            self.update_database()
+            
           
 
         else:
@@ -6780,12 +8622,6 @@ to successfully change your Email Address""")  # Print the generated OTP
 
 
 
- 
-      
-            
-       
-
-          
 
 
     def mobile_number_page(self, db, Phonenumber):
@@ -7091,7 +8927,7 @@ to successfully change your Email Address""")  # Print the generated OTP
         # Update the email in the database
                 sql = "UPDATE registerdb SET Phonenumber = %s WHERE Phonenumber = %s"
                 cursor.execute(sql, (new_number, number))
-                print(new_number)
+                
                     
                 self.db.commit()
 
@@ -7100,6 +8936,37 @@ to successfully change your Email Address""")  # Print the generated OTP
                 action = f"Changed Phone Number from {number} to {new_number}"
                 cursor.execute(sql_update_edit, (new_number, action))
                 self.db.commit()
+
+                sql = "UPDATE login_logs SET PhoneNumber = %s WHERE PhoneNumber = %s"
+                cursor.execute(sql, (new_number, number))
+                
+                    
+                self.db.commit()
+
+                sql = "UPDATE susu_groups SET member_id = %s WHERE member_id = %s"
+                cursor.execute(sql, (new_number, number))
+               
+                    
+                self.db.commit()
+
+                sql = "UPDATE susu_members SET member_id = %s WHERE member_id = %s"
+                cursor.execute(sql, (new_number, number))
+                
+                    
+                self.db.commit()
+
+                sql = "UPDATE contributions SET member_id = %s WHERE member_id = %s"
+                cursor.execute(sql, (new_number, number))
+                
+                    
+                self.db.commit()
+
+                sql = "UPDATE susu_account SET Member_ID = %s WHERE Member_ID = %s"
+                cursor.execute(sql, (new_number, number))
+                
+                    
+                self.db.commit()
+
                 sql = "INSERT INTO alertdb (message, created_at, Email) VALUES(%s, NOW(), %s)"
                 cursor.execute(sql, (message, self.current_user_email,))
                 self.db.commit()
@@ -7127,15 +8994,12 @@ to successfully change your Email Address""")  # Print the generated OTP
     def generate_otp1(self):
         number = self.phone_number
         self.otp1 = str(random.randint(100000, 999999))
-        print(f"Sending OTP to {number}")
-        print(f"""Your Verification code: {self.otp1}
+        QMessageBox.information(self, "OTP", f"Sending OTP to {number}")
+        QMessageBox.information(self, "OTP", f"""Your Verification code: {self.otp1}
 For security reasons, do not share
 this code with anyone. Enter this code 
 to successfully change your Phone Number""")  # Print the generated OTP
         self.start_timer1()
-
-    def send_otp1(self,number):
-        print(f"Sending OTP to {number}")    
 
 
     def clear_otp_input1(self):
@@ -7154,13 +9018,20 @@ to successfully change your Phone Number""")  # Print the generated OTP
         if entered_otp == self.otp1:
             QMessageBox.information(self, "Success", "OTP Matched Successfully")
             self.clear_otp_input1()
-            self.generate_otp1 = False
+            self.update_database1()
+            
             self.info_label1.hide()
             self.container1.hide()
             self.timer_label1.hide()
             self.regenerate_otp_button1.hide()
+            self.number_input.show()
+            self.number_input.clear()
+            self.new_number_input.clear()
+            self.confirm_number_input.clear()
+            self.new_number_input.show()
+            self.confirm_number_input.show()
             self.timer.stop() 
-            self.update_database1()
+            
           
            
 
@@ -7307,12 +9178,6 @@ to successfully change your Phone Number""")  # Print the generated OTP
         self.confirm_number_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
 
     
-
-     
-
-
-
-
 
     @pyqtSlot()
     def reset_email_input_style(self):
@@ -7713,21 +9578,19 @@ to successfully change your Phone Number""")  # Print the generated OTP
         email = self.current_user_email
         number = self.phone_number
         self.otp2 = str(random.randint(100000, 999999))
-        print(f"Sending OTP to {email}")
-        print(f"""Your Verification code: {self.otp2}
+        QMessageBox.information(self, "OTP", f"Sending OTP to {email}")
+        QMessageBox.information(self, "OTP", f"""Your Verification code: {self.otp2}
 For security reasons, do not share
 this code with anyone. Enter this code 
 to successfully change your Password""") 
-        print(f"Sending OTP to {number}")
-        print(f"""Your Verification code: {self.otp2}
+        QMessageBox.information(self, "OTP", f"Sending OTP to {number}")
+        QMessageBox.information(self, "OTP", f"""Your Verification code: {self.otp2}
 For security reasons, do not share
 this code with anyone. Enter this code 
 to successfully change your Password""") # Print the generated OTP
         self.start_timer2()
 
-    def send_otp2(self,number):
-        print(f"Sending OTP to {number}")    
-
+   
 
     def clear_otp_input2(self):
         for otp_box in self.otp2_boxes:
@@ -7744,14 +9607,25 @@ to successfully change your Password""") # Print the generated OTP
            
         if entered_otp == self.otp2:
             QMessageBox.information(self, "Success", "OTP Matched Successfully")
+            
             self.clear_otp_input2()
+            self.update_database2()
             self.generate_otp2 = False
             self.info_label2.hide()
             self.container2.hide()
             self.timer_label2.hide()
             self.regenerate_otp_button2.hide()
+            self.password_input.show()
+            self.password_input.clear()
+            self.confirm_password_input.clear()
+            self.new_password_input.clear()
+            self.new_password_input.show()
+            self.confirm_password_input.show()
+            self.show_password_checkbox1.show()
+            self.show_password_checkbox2.show()
+            self.show_password_checkbox3.show()
             self.timer.stop() 
-            self.update_database2()
+            
           
            
 
@@ -7868,6 +9742,8 @@ to successfully change your Password""") # Print the generated OTP
         # Reset the stylesheet when the user leaves the input field
         self.new_password_input.setStyleSheet("border-radius: 25px; padding: 10px; font-size: 16px;")
 
+    def start(self):
+        self.show()
 
     def sha512_64_hash(self,key):
         
@@ -7881,10 +9757,102 @@ to successfully change your Password""") # Print the generated OTP
     def handle_page_change(self, index):
         print(index)
         # When the current page changes, hide specific widgets as needed
+        if index != 8:
+
+            self.clear_otp_input2()
+            
+            self.info_label2.hide()
+            self.container2.hide()
+            self.timer_label2.hide()
+            self.regenerate_otp_button2.hide()
+
+
+
+            self.password_input.clear()
+            self.notification_label2.hide()
+            self.password_input.show()
+            self.new_password_input.clear()
+            self.confirm_password_input.clear()
+            
+            self.new_password_input.show()
+            self.confirm_password_input.show()
+            self.show_password_checkbox1.show()
+            self.show_password_checkbox2.show()
+            self.show_password_checkbox3.show()
+            
+           
+            
+
+        if index != 14 :
+            self.clear_pin_input1()
+            
+            self.pin_info_label1.hide()
+            self.pin_container1.hide()
+            self.pin_label1.hide() 
+            self.receiver3_acc_input.show()
+            self.transfer7_amount_input.show()
+            self.transfer7_notify_label.hide()
+
+        if index != 15 :
+            self.clear_pin_input2()
+            
+            self.pin_info_label2.hide()
+            self.pin_container2.hide()
+            self.pin_label2.hide() 
+            self.receiver2_acc_input.show()
+            self.transfer6_amount_input.show()
+            self.transfer7_notify_label.hide()
+
+        if index != 20 :
+            self.clear_otp_input()
+            
+            self.info_label.hide()
+            self.container.hide()
+            self.timer_label.hide()
+            self.regenerate_otp_button.hide()
+            self.notification_label.hide()
+
+           
+            self.email_input.show()
+            
+            self.new_email_input.show()
+            self.confirm_email_input.show()
+            self.email_input.clear()
+            
+            self.new_email_input.clear()
+            self.confirm_email_input.clear()
+          
+
+
+        if index != 21 :    
+
+            self.clear_otp_input1()
+            
+            self.info_label1.hide()
+            self.container1.hide()
+            self.timer_label1.hide()
+            self.regenerate_otp_button1.hide()
+            self.notification_label1.hide()
+            self.number_input.clear()
+            self.number_input.show    
+            self.new_number_input.show()
+            self.new_number_input.clear()
+            self.confirm_number_input.clear()
+            self.confirm_number_input.show()
+            
+            
+              
+               
+            
         if index != 22:
             # Hide specific widgets in page 2 when leaving that page
             self.acc_label.hide()    
             self.pin_input.clear()
+
+        if index != 23:
+            self.new_pin_input.clear()
+            self.confirm_new_pin_input.clear()
+            self.notification_label4.hide()    
             
         if index != 18:
             self.first_name_input.clear()
@@ -7892,13 +9860,147 @@ to successfully change your Password""") # Print the generated OTP
             self.goal_input.clear()
             self.notify_label.hide()
 
+        if index != 24:
+            self.clear_otp_input3()
+            
+            self.info_label3.hide()
+            self.container3.hide()
+            self.timer_label3.hide()
+            self.regenerate_otp_button3.hide()
+
+
+
+            self.pin_notification_label.hide()
+            self.current_pin_input.show()
+            self.current_pin_input.clear()
+            
+            self.show_current_pin_checkbox.show()
+            self.show_new_update_pin_checkbox.show()
+            self.show_confirm_update_pin_checkbox.show()
+            self.new_update_pin_input.show()
+            self.new_update_pin_input.clear()
+            
+            self.confirm_update_pin_input.show()
+            
+            self.confirm_update_pin_input.clear()
+        
+                
+
         if index != 25:
             
-            self.reset_ui_for_new_otp()   
+            self.reset_ui_for_new_otp() 
+            self.clear_otp_input4()
+            self.accountnum_input.clear()
+            self.info_label4.hide()
+            self.container4.hide()
+            self.timer_label4.hide()
+            self.sab_regenerate_otp_button.hide()
+            
+            self.accountnum_input.show()
+              
+
+        if index != 26 :
+            self.saving_account_input.clear()
+            self.first_name1_input.clear()
+            self.last_name1_input.clear()
+            self.goal1_input.clear()   
+            self.save_notify_label.hide()
+
         if index != 28:
             self.sender1_acc_input.clear()
             self.transfer_amount1_input.clear()
             self.transfer1_notify_label.hide()
+
+        if index !=29 :
+
+            self.clear_otp_input7()
+            
+            self.info_label7.hide()
+            self.container7.hide()
+            self.timer_label7.hide()
+            self.transfer2_regenerate_otp_button.hide()
+            self.transfer2_notify_label.hide()
+             
+            self.sender2_acc_input.show()
+            self.transfer_amount2_input.show()
+
+        if index != 30:
+            self.transfer_amount3_input.clear()
+            self.sender3_acc_input.clear()    
+            self.transfer3_notify_label.hide()
+             
+        if index != 31 :
+
+            self.pin_info_label.hide()
+            self.pin_container.hide()
+            self.pin_label.hide() 
+            self.receiver_acc_input.show()
+            self.transfer4_amount_input.show()
+            self.receiver_acc_input.clear()
+            self.transfer4_amount_input.clear()
+            self.transfer4_notify_label.hide()
+
+        if index != 32 :
+            self.transfer5_amount_input.clear()
+            self.receiver1_acc_input.clear()
+            self.clear_pin_input3()  
+            self.pin_info_label3.hide()
+            self.pin_container3.hide()
+            self.pin_label3.hide() 
+            self.receiver1_acc_input.show()
+            self.transfer5_amount_input.show()   
+            
+    
+            self.transfer5_notify_label.hide()  
+
+
+        if index != 34:
+            self.susu_pin_input.clear()   
+            self.susu_acc_label.hide()
+
+        if index != 35 :
+            self.info_label6.hide()
+            self.container6.hide()
+            self.timer_label6.hide()
+            self.regenerate_otp_for_forgot_pin_button.hide()
+            self.email_input_for_forgot_pin.show()
+            self.forgot_pin_input.show()
+            self.forgot_pin_checkbox.show()
+            self.show_confirm_forgot_pin_checkbox.show()
+            self.confirm_forgot_pin_input.show()
+            self.forgot_pin_notification_label.hide()
+            
+            
+
+        if index != 36 :
+            self.clear_otp_input8()
+            
+            self.info_label8.hide()
+            self.container8.hide()
+            self.timer_label8.hide()
+            self.transfer8_regenerate_otp_button.hide()
+            
+            self.group_acc_input.show()
+            self.transfer_amount8_input.show()
+            
+            self.transfer8_notify_label.hide()
+            
+            
+                
+
+        if index != 12 :
+            self.group_name_input.clear()
+            self.contribution_amount_input.clear()
+            
+            self.members_count_input.clear()
+
+        if index != 33 :
+            self.group_id_input.clear()
+            self.session_id_input.clear()    
+
+
+       
+
 
        
 
@@ -8627,19 +10729,12 @@ class continueWindow(QMainWindow):
                     # Hash the password before storing it
                     hashed_password = hashlib.sha256(password_input.encode()).hexdigest()
 
-                    # Check if the hashed password already exists
-                    cursor.execute("SELECT * FROM registerdb WHERE PasswordHash = %s", (hashed_password,))
-                    result = cursor.fetchone()
-
-                    if result:
-                        QMessageBox.information(self, "Registration Failed",
-                                                "The password is already used. Please use another password.")
-                    else:
+                   
                         # Insert the hashed password into the database
-                        insert_query="INSERT INTO registerdb (SessionId, Firstname, Lastname, Dob, Gender, Phonenumber,Email, Password, PasswordHash) VALUES (%s, %s, %s, %s, %s, %s, %s,%s,%s )" 
-                        new_user_data = (self.SessionId, self.first_name, self.last_name, self.dob, self.gender, self.email, password_input, hashed_password)  
-                        #update_query = "UPDATE registerdb SET column1 = %s, column2 = %s, ... WHERE SessionId = %s"
-                        new_user_data = (self.SessionId, self.first_name, self.last_name, self.dob, self.gender, self.phone_number, self.email, password_input,hashed_password)   
+                    insert_query="INSERT INTO registerdb (SessionId, Firstname, Lastname, Dob, Gender, Phonenumber,Email, Password, PasswordHash) VALUES (%s, %s, %s, %s, %s, %s, %s,%s,%s )" 
+                    new_user_data = (self.SessionId, self.first_name, self.last_name, self.dob, self.gender, self.email, password_input, hashed_password)  
+                    #update_query = "UPDATE registerdb SET column1 = %s, column2 = %s, ... WHERE SessionId = %s"
+                    new_user_data = (self.SessionId, self.first_name, self.last_name, self.dob, self.gender, self.phone_number, self.email, password_input,hashed_password)   
                         
         # Execute the update query with the complete user data and session ID
 
@@ -8647,33 +10742,28 @@ class continueWindow(QMainWindow):
                       #  delete_query = "DELETE FROM registerdb WHERE SessionId = %s"
         
         # Execute the delete query to clean up temporary data
-                        if password_input!= confirmation_password:
+                    if password_input!= confirmation_password:
             # Display a message box indicating password mismatch
-                         QMessageBox.warning(self, "Password Mismatch", "Password and confirm password do not match.")
-                         return
+                        QMessageBox.warning(self, "Password Mismatch", "Password and confirm password do not match.")
+                        return
             
 
               
-                        cursor.execute(insert_query,new_user_data)
-                        db.commit()
+                    cursor.execute(insert_query,new_user_data)
+                    db.commit()
 
                        # cursor.execute(update_query, (self.SessionId))
                        # db.commit() 
                        # cursor.execute(new_user_data)
                        # cursor.execute(delete_query, (self.SessionId,))
                         #db.commit() 
-                        QMessageBox.information(self, "Registration Successful",
+                    QMessageBox.information(self, "Registration Successful",
                                                 "The user has been registered successfully.")
                         
-
-                       
                         
+                    cursor.close()
                         
-                        
-                        cursor.close()
-                        print(new_user_data)
-                       # print(new_user_data)
-                        db.close()
+                    db.close()
            
 
             
@@ -9020,14 +11110,14 @@ class Forgot_PasswordWindow(QMainWindow):
             self.notification_label.show()
             return
         
-        self.notification_label.hide()
+        
 
         if entered_otp =="":
             self.generate_otp()
             self.email_input.hide()
             
             self.password_input.hide()
-            self.password_input.clear()
+            
             self.confirm_password_input.hide()
             
             self.show_password_checkbox.hide()
@@ -9043,7 +11133,9 @@ class Forgot_PasswordWindow(QMainWindow):
             self.regenerate_otp_button.show()
             self.notification_label.setText("")
             self.start_timer()
-            self.notification_label.hide()
+            
+
+        self.notification_label.hide()    
 
     def update_database(self):
         email = self.email_input.text()
@@ -9078,8 +11170,8 @@ class Forgot_PasswordWindow(QMainWindow):
     def generate_otp(self):
         email = self.email_input.text()
         self.otp = str(random.randint(100000, 999999))
-        print(f"Sending OTP to {email}")
-        print(f"""Your Verification code: {self.otp}
+        QMessageBox.information(self,"OTP", f"Sending OTP to {email}")
+        QMessageBox.information(self,"OTP", f"""Your Verification code: {self.otp}
 For security reasons, do not share
 this code with anyone. Enter this code 
 to successfully change your Pin""")
@@ -9371,6 +11463,7 @@ class MainWindow(QMainWindow):
         self.load_image()
 
 if __name__ == "__main__":
+    start_scheduler()
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
